@@ -2,6 +2,7 @@
 Debug/
 Release/
 build/
+*.launch
 
 # IDE workspace-local (per-user, not portable)
 .settings/
