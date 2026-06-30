@@ -1,0 +1,21 @@
+# Build outputs
+Debug/
+Release/
+build/
+
+# IDE workspace-local (per-user, not portable)
+.settings/
+.metadata/
+
+# CubeMX backup/log noise
+*.bak
+EWARM/
+MDK-ARM/
+SW4STM32/
+TrueSTUDIO/
+
+# OS/editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+*~
