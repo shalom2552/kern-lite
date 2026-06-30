@@ -7,6 +7,7 @@ build/
 # IDE workspace-local (per-user, not portable)
 .settings/
 .metadata/
+compile_commands.json
 
 # CubeMX backup/log noise
 *.bak
