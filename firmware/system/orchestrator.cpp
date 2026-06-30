@@ -12,11 +12,34 @@ extern IWDG_HandleTypeDef hiwdg;
 
 namespace kern::system {
 
-void Orchestrator::init() { bus.init(); }
-void Orchestrator::runSensorTask() { for (;;) vTaskDelay(pdMS_TO_TICKS(100)); }
-void Orchestrator::runStorageTask() { for (;;) vTaskDelay(pdMS_TO_TICKS(100)); }
-void Orchestrator::runCommsTask() { for (;;) vTaskDelay(pdMS_TO_TICKS(10)); }
-void Orchestrator::runSystemTask() {
+void Orchestrator::init()
+{
+    bus.init();
+}
+
+void Orchestrator::runSensorTask()
+{
+    for (;;) {
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+}
+
+void Orchestrator::runStorageTask()
+{
+    for (;;) {
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+}
+
+void Orchestrator::runCommsTask()
+{
+    for (;;) {
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+}
+
+void Orchestrator::runSystemTask()
+{
 
     static const char msg[] = "KERN-LITE ALIVE\r\n";
     for (;;) {

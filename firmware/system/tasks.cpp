@@ -12,10 +12,21 @@ static StackType_t storageStack[kern::tasks::kStorageStack];
 static StackType_t commsStack[kern::tasks::kCommsStack];
 static StackType_t systemStack[kern::tasks::kSystemStack];
 
-static void sensorTask(void*) { O::instance().runSensorTask(); }
-static void storageTask(void*) { O::instance().runStorageTask(); }
-static void commsTask(void*) { O::instance().runCommsTask(); }
-static void systemTask(void*) { O::instance().runSystemTask(); }
+static void sensorTask(void*) {
+    O::instance().runSensorTask();
+}
+
+static void storageTask(void*) {
+    O::instance().runStorageTask();
+}
+
+static void commsTask(void*) {
+    O::instance().runCommsTask();
+}
+
+static void systemTask(void*) {
+    O::instance().runSystemTask();
+}
 
 void kern_create_tasks() {
     O::instance().init();
