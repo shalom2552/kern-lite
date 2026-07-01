@@ -37,7 +37,7 @@ Samples 5 sensor channels at 10Hz, filters/validates them, writes fixed 32-byte 
 
 1. Open `kern-lite.ioc` in STM32CubeIDE → Build All
 2. Flash via ST-Link
-3. Serial terminal, 115200 8N1 → expect `KERN-LITE ALIVE` @ 1Hz + PC9 blink
+3. Serial terminal, 115200 8N1
 
 ## Pinout
 
