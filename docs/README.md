@@ -7,13 +7,13 @@ Samples 5 sensor channels at 10Hz, filters/validates them, writes fixed 32-byte 
 ## Status
 
 - [x] Phase 0 — Project setup, RTOS smoke test
-- [ ] Day 1 — CRC-32 + frame codec
-- [ ] Day 2 — UART round-trip (STATUS/ACK)
-- [ ] Day 3 — Sensors, DSP, live SensorRecord stream
-- [ ] Day 4 — Circular file storage, replay, recovery
-- [ ] Day 5 — State machine, full command set
-- [ ] Day 6 — Ground station analytics
-- [ ] Day 7 — Fault injection, validation, demo
+- [ ] Phase 1 — CRC-32 + frame codec
+- [ ] Phase 2 — UART round-trip (STATUS/ACK)
+- [ ] Phase 3 — Sensors, DSP, live SensorRecord stream
+- [ ] Phase 4 — Circular file storage, replay, recovery
+- [ ] Phase 5 — State machine, full command set
+- [ ] Phase 6 — Ground station analytics
+- [ ] Phase 7 — Fault injection, validation, demo
 
 ## Architecture
 
