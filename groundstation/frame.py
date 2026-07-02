@@ -5,16 +5,19 @@ file: groundstation/frame.py
 author: shalom2552
 date: 2026-02-07
 """
+
 import struct
 from crc import crc32, crc32_update
 from enum import IntEnum, Enum, auto
 from typing import Optional
 from dataclasses import dataclass
 
+
 STX = 0xAB
 ETX = 0xCD
 MAX_PAYLOAD = 256
 FRAME_OVERHEAD = 9
+
 
 class FrameType(IntEnum):
     CmdStart = 0x01
@@ -27,12 +30,14 @@ class FrameType(IntEnum):
     Ack = 0x20
     Nack = 0x21
 
+
 class NackCode(IntEnum):
     CrcError = 1
     BadCommand = 2
     InvalidState = 3
     StorageError = 4
     BadMagic = 6
+
 
 @dataclass
 class Frame:
@@ -46,11 +51,14 @@ class Frame:
     wrap_count: int = 0
     records_in_file: int = 0
 
+
 class CrcError(Exception):
     pass
 
+
 class SyncError(Exception):
     pass
+
 
 def encode(frame: Frame) -> bytes:
     payload_len = len(frame.payload)
@@ -58,6 +66,7 @@ def encode(frame: Frame) -> bytes:
     crc_data = header + frame.payload
     crc_val = crc32(crc_data)
     return bytes([STX]) + crc_data + struct.pack('<I', crc_val) + bytes([ETX])
+
 
 class Decoder:
     class _State(Enum):
