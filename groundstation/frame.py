@@ -99,61 +99,65 @@ class Decoder:
         Mirror the firmware state machine exactly
         """
         S = self._State
-        if self._state == S.WAIT_STX:
-            if byte == STX:
-                self._state = S.TYPE
+        match self._state:
+            case S.WAIT_STX:
+                if byte == STX:
+                    self._state = S.TYPE
 
-        elif self._state == S.TYPE:
-            self._type = byte
-            self._crc_calc = crc32_update(0, bytes([byte]))
-            self._state = S.LEN_LO
+            case S.TYPE:
+                self._type = byte
+                self._crc_calc = crc32_update(0, bytes([byte]))
+                self._state = S.LEN_LO
 
-        elif self._state == S.LEN_LO:
-            self._len = byte
-            self._crc_calc = crc32_update(self._crc_calc, bytes([byte]))
-            self._state = S.LEN_HI
+            case S.LEN_LO:
+                self._len = byte
+                self._crc_calc = crc32_update(self._crc_calc, bytes([byte]))
+                self._state = S.LEN_HI
 
-        elif self._state == S.LEN_HI:
-            self._len |= byte << 8
-            self._crc_calc = crc32_update(self._crc_calc, bytes([byte]))
-            if self._len > MAX_PAYLOAD:
+            case S.LEN_HI:
+                self._len |= byte << 8
+                self._crc_calc = crc32_update(self._crc_calc, bytes([byte]))
+                if self._len > MAX_PAYLOAD:
+                    self.reset()
+                    raise SyncError(f"len {self._len} > {MAX_PAYLOAD}")
+                self._payload = bytearray()
+                self._state = S.PAYLOAD if self._len else S.CRC0
+
+            case S.PAYLOAD:
+                self._payload.append(byte)
+                self._crc_calc = crc32_update(self._crc_calc, bytes([byte]))
+                if len(self._payload) == self._len:
+                    self._state = S.CRC0
+
+            case S.CRC0:
+                self._crc_recv = bytearray([byte])
+                self._state = S.CRC1
+
+            case S.CRC1:
+                self._crc_recv.append(byte)
+                self._state = S.CRC2
+
+            case S.CRC2:
+                self._crc_recv.append(byte)
+                self._state = S.CRC3
+
+            case S.CRC3:
+                self._crc_recv.append(byte)
+                self._state = S.WAIT_ETX
+
+            case S.WAIT_ETX:
+                recv = struct.unpack('<I', bytes(self._crc_recv))[0]
+                calc = self._crc_calc & 0xFFFFFFFF
+                ftype_raw, payload, ok_etx = self._type, bytes(self._payload), byte == ETX
                 self.reset()
-                raise SyncError(f"len {self._len} > {MAX_PAYLOAD}")
-            self._payload = bytearray()
-            self._state = S.PAYLOAD if self._len else S.CRC0
-
-        elif self._state == S.PAYLOAD:
-            self._payload.append(byte)
-            self._crc_calc = crc32_update(self._crc_calc, bytes([byte]))
-            if len(self._payload) == self._len:
-                self._state = S.CRC0
-
-        elif self._state == S.CRC0:
-            self._crc_recv = bytearray([byte])
-            self._state = S.CRC1
-        elif self._state == S.CRC1:
-            self._crc_recv.append(byte)
-            self._state = S.CRC2
-        elif self._state == S.CRC2:
-            self._crc_recv.append(byte)
-            self._state = S.CRC3
-        elif self._state == S.CRC3:
-            self._crc_recv.append(byte)
-            self._state = S.WAIT_ETX
-
-        elif self._state == S.WAIT_ETX:
-            recv = struct.unpack('<I', bytes(self._crc_recv))[0]
-            calc = self._crc_calc & 0xFFFFFFFF
-            ftype_raw, payload, ok_etx = self._type, bytes(self._payload), byte == ETX
-            self.reset()
-            if recv != calc:
-                raise CrcError(f"crc mismatch calc={calc:#x} recv={recv:#x}")
-            if not ok_etx:
-                raise SyncError(f"bad etx {byte:#x}")
-            try:
-                ftype = FrameType(ftype_raw)
-            except ValueError:
-                raise SyncError(f"unknown type {ftype_raw:#x}")
-            return Frame(type=ftype, payload=payload)
+                if recv != calc:
+                    raise CrcError(f"crc mismatch calc={calc:#x} recv={recv:#x}")
+                if not ok_etx:
+                    raise SyncError(f"bad etx {byte:#x}")
+                try:
+                    ftype = FrameType(ftype_raw)
+                except ValueError:
+                    raise SyncError(f"unknown type {ftype_raw:#x}")
+                return Frame(type=ftype, payload=payload)
 
         return None
