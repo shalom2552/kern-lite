@@ -1,3 +1,12 @@
+/*
+	Implement crc32 logic
+
+	file: firmware/protocol/crc32.cpp
+	Author: Yair
+	date: 02.07.26
+
+*/
+
 #include "crc32.hpp"
 
 namespace kern::protocol {
@@ -8,7 +17,7 @@ namespace kern::protocol {
 
 constexpr uint32_t POLY = 0xEDB88320;
 
-// compute crc output for every byte by the byte entry
+/* compute crc output for every byte by the byte entry */
 constexpr uint32_t computeEntry(uint32_t byte)
 {
     uint32_t crc = byte;
