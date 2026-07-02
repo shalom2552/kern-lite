@@ -13,7 +13,7 @@ from dataclasses import dataclass
 STX = 0xAB
 ETX = 0xCD
 MAX_PAYLOAD = 256
-FRAME_OVERHEAD = 8
+FRAME_OVERHEAD = 9
 
 class FrameType(IntEnum):
     CmdStart = 0x01
@@ -21,17 +21,17 @@ class FrameType(IntEnum):
     CmdStatus = 0x03
     CmdReplay = 0x04
     CmdErase = 0x06
-    Status = 0x10
-    Record = 0x11
+    Status = 0x12
+    Record = 0x10
     Ack = 0x20
     Nack = 0x21
 
 class NackCode(IntEnum):
-    BadCommand = 1
-    InvalidState = 2
-    BadLength = 3
-    BadMagic = 4
-    StorageError = 5
+    CrcError = 1
+    BadCommand = 2
+    InvalidState = 3
+    StorageError = 4
+    BadMagic = 6
 
 
 @dataclass
