@@ -7,7 +7,7 @@ date: 2026-02-07
 """
 
 import struct
-from crc import crc32, crc32_update
+from groundstation.crc import crc32, crc32_update
 from enum import IntEnum, Enum, auto
 from typing import Optional
 from dataclasses import dataclass
