@@ -1,8 +1,17 @@
+# file: .gitignore
+
 # Build outputs
 Debug/
 Release/
 build/
 *.launch
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
 
 # IDE workspace-local (per-user, not portable)
 .settings/
