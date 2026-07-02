@@ -64,4 +64,4 @@ docs/        full spec + design notes
 
 ## Team
 
-Shalom, Yair-Dekel, Smallejoo
+shalom2552, Yair-Dekel, Smallejoo
