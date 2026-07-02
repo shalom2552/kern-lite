@@ -14,4 +14,5 @@ def crc32(data: bytes) -> int:
 
 
 def crc32_update(crc: int, data: bytes) -> int:
+    """Continue CRC over additional data (pass prior result as crc)."""
     return zlib.crc32(data, crc) & 0xFFFFFFFF

@@ -19,6 +19,14 @@ MAX_PAYLOAD = 256
 FRAME_OVERHEAD = 9
 
 
+class CrcError(Exception):
+    pass
+
+
+class SyncError(Exception):
+    pass
+
+
 class FrameType(IntEnum):
     CmdStart = 0x01
     CmdStop = 0x02
@@ -52,15 +60,11 @@ class Frame:
     records_in_file: int = 0
 
 
-class CrcError(Exception):
-    pass
-
-
-class SyncError(Exception):
-    pass
-
-
 def encode(frame: Frame) -> bytes:
+    """
+    Encoding a frame into bytes for transmission.
+    returns the encoded bytes of the frame.
+    """
     payload_len = len(frame.payload)
     header = struct.pack('<BH', frame.type.value, payload_len)
     crc_data = header + frame.payload
@@ -69,6 +73,9 @@ def encode(frame: Frame) -> bytes:
 
 
 class Decoder:
+    """
+    Decoder class for decoding frames from bytes received.
+    """
     class _State(Enum):
         WAIT_STX = auto()
         TYPE = auto()
