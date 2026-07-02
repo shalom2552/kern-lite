@@ -15,6 +15,28 @@ MCU - STM32L476RG.
 - [ ] Phase 6 — Ground station analytics
 - [ ] Phase 7 — Fault injection, validation, demo
 
+## Running the Ground Station (Python)
+
+- First-time setup:
+
+```bash
+python -m venv .venv                        # create virtual env
+.venv/bin/pip install -r requirements.txt   # install deps
+```
+
+- Run tests:
+
+```bash
+.venv/bin/pytest -v                         # run tests
+```
+
+- Run a Python file:
+
+```bash
+.venv/bin/python <path/to/file.py>          # run any module/script
+```
+Run all commands from repo root.
+
 ## Pinout
 
 | Pin | Signal | Mode |
