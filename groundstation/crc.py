@@ -11,3 +11,5 @@ import zlib
 def crc32(data: bytes) -> int:
     return zlib.crc32(data) & 0xFFFFFFFF
 
+def crc32_update(crc: int, data: bytes) -> int:
+    return zlib.crc32(data, crc) & 0xFFFFFFFF
