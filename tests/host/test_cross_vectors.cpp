@@ -1,5 +1,10 @@
-#include "../../firmware/protocol/codec.hpp"
+//Tests for KERN-LITE protocol cross validation.
+//file: tests/gs/test_cross_vectors.cpp
+//author: Smallejoo
+//date: 2026-04-07
 
+
+#include "../../firmware/protocol/codec.hpp"
 #include <cstdio>
 #include <cstdint>
 #include <cstddef>
@@ -15,6 +20,7 @@ static int g_failures = 0;
     } \
 } while (0)
 
+
 static DecodeResult feed_all(Decoder& dec, const uint8_t* data, size_t len)
 {
     DecodeResult r = DecodeResult::NeedMore;
@@ -27,11 +33,8 @@ static DecodeResult feed_all(Decoder& dec, const uint8_t* data, size_t len)
     return r;
 }
 
-static void test_vector(const char* name,
-                        const uint8_t* data,
-                        size_t len,
-                        FrameType expectedType,
-                        uint16_t expectedLen)
+static void test_vector(const char* name, const uint8_t* data,
+                        size_t len, FrameType expectedType, uint16_t expectedLen)
 {
     Decoder dec;
     DecodeResult r = feed_all(dec, data, len);

@@ -1,3 +1,10 @@
+"""
+Tests for KERN-LITE protocol cross validation.
+
+file: tests/gs/test_cross_vectors.py
+author: Smallejoo
+date: 2026-04-07
+"""
 from groundstation.frame import Decoder, FrameType
 
 
@@ -44,7 +51,7 @@ def decode_all(data: bytes):
     return None
 
 
-def test_vector(name: str, data: bytes, expected_type: FrameType, expected_len: int):
+def check_vector(name: str, data: bytes, expected_type: FrameType, expected_len: int):
     frame = decode_all(data)
 
     assert frame is not None
@@ -54,10 +61,22 @@ def test_vector(name: str, data: bytes, expected_type: FrameType, expected_len: 
     print(f"[OK] {name} decoded")
 
 
+def test_ack_vector_decodes():
+    check_vector("ACK_VECTOR", ACK_VECTOR, FrameType.Ack, 0)
+
+
+def test_status14_vector_decodes():
+    check_vector("STATUS14_VECTOR", STATUS14_VECTOR, FrameType.Status, 14)
+
+
+def test_record32_vector_decodes():
+    check_vector("RECORD32_VECTOR", RECORD32_VECTOR, FrameType.Record, 32)
+
+
 def main():
-    test_vector("ACK_VECTOR", ACK_VECTOR, FrameType.Ack, 0)
-    test_vector("STATUS14_VECTOR", STATUS14_VECTOR, FrameType.Status, 14)
-    test_vector("RECORD32_VECTOR", RECORD32_VECTOR, FrameType.Record, 32)
+    check_vector("ACK_VECTOR", ACK_VECTOR, FrameType.Ack, 0)
+    check_vector("STATUS14_VECTOR", STATUS14_VECTOR, FrameType.Status, 14)
+    check_vector("RECORD32_VECTOR", RECORD32_VECTOR, FrameType.Record, 32)
 
     print("ALL PYTHON CROSS VECTOR TESTS PASSED")
 
