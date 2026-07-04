@@ -5,7 +5,7 @@ namespace kern::protocol {
 
 enum class DecodeResult { NeedMore, FrameReady, CrcError, SyncError };
 
-// Returns total bytes written to outBuf, or 0 on overflow / f.len > kMaxPayload.
+/* Returns total bytes written to outBuf, or 0 on overflow / f.len > kMaxPayload. */
 size_t encode(const Frame& f, uint8_t* outBuf, size_t outSize);
 
 class Decoder {
