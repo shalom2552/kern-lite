@@ -1,10 +1,13 @@
-//Tests for KERN-LITE protocol cross validation.
-//file: tests/gs/test_cross_vectors.cpp
-//author: Smallejoo
-//date: 2026-04-07
+/*
+Tests for KERN-LITE protocol cross validation.
 
+file: tests/gs/test_cross_vectors.cpp
+author: Smallejoo
+date: 2026-04-07
+*/
 
 #include "../../firmware/protocol/codec.hpp"
+
 #include <cstdio>
 #include <cstdint>
 #include <cstddef>
