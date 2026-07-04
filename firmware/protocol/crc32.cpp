@@ -4,7 +4,6 @@
 	file: firmware/protocol/crc32.cpp
 	Author: Yair
 	date: 02.07.26
-
 */
 
 #include "crc32.hpp"
@@ -33,7 +32,7 @@ constexpr uint32_t computeEntry(uint32_t byte)
     return crc;
 }
 
-// make the table
+/* create the table */
 constexpr std::array<uint32_t, 256> makeTable()
 {
     std::array<uint32_t, 256> table{};
@@ -45,7 +44,7 @@ constexpr std::array<uint32_t, 256> makeTable()
     return table;
 }
 
-// create the table in compile time
+/* create the table in compile time */
 constexpr auto crcTable = makeTable();
 
 uint32_t crc32(const uint8_t* data, size_t len)
@@ -73,4 +72,4 @@ uint32_t crc32Finalize(uint32_t crc)
 	return crc ^ 0xFFFFFFFFu;
 }
 
-}	// namespace kern::protocol end
+}	// namespace kern::protocol
