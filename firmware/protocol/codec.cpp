@@ -42,9 +42,11 @@ void Decoder::reset() {
     m_rxCrc = 0;
 }
 
-// Rearms the state machine for the next frame WITHOUT clearing m_frame,
-// so frame() stays valid for the caller (to read the just-decoded frame)
-// until the next STX starts overwriting it. Used after FrameReady/CrcError.
+/**
+ * Rearms the state machine for the next frame WITHOUT clearing m_frame,
+ * so frame() stays valid for the caller (to read the just-decoded frame)
+ * until the next STX starts overwriting it. Used after FrameReady/CrcError.
+ */
 void Decoder::rearm() {
     m_state = State::WaitStx;
     m_payloadIdx = 0;
