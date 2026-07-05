@@ -8,7 +8,6 @@
 
 #include "crc32.hpp"
 
-// create lookup table for the polynomial of crc32 0xEDB88320 in compile time
 #include <array>
 #include <cstdint>
 
@@ -16,6 +15,7 @@ namespace kern::protocol {
 
 constexpr uint32_t POLY = 0xEDB88320;
 
+/* create lookup table for the polynomial of crc32 0xEDB88320 in compile time */
 /* compute crc output for every byte by the byte entry */
 constexpr uint32_t computeEntry(uint32_t byte)
 {
