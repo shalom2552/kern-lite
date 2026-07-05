@@ -36,6 +36,7 @@ python -m venv .venv                        # create virtual env
 .venv/bin/python <path/to/file.py>          # run any module/script
 ```
 Run all commands from repo root.
+> Windows: use .venv\Scripts\ instead of .venv/bin/.
 
 ## Pinout
 
