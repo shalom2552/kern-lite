@@ -7,13 +7,35 @@ MCU - STM32L476RG.
 ## Status
 
 - [x] Phase 0 — Project setup, RTOS smoke test
-- [ ] Phase 1 — CRC-32 + frame codec
+- [x] Phase 1 — CRC-32 + frame codec
 - [ ] Phase 2 — UART round-trip (STATUS/ACK)
 - [ ] Phase 3 — Sensors, DSP, live SensorRecord stream
 - [ ] Phase 4 — Circular file storage, replay, recovery
 - [ ] Phase 5 — State machine, full command set
 - [ ] Phase 6 — Ground station analytics
 - [ ] Phase 7 — Fault injection, validation, demo
+
+## Running the Ground Station (Python)
+
+- First-time setup:
+
+```bash
+python -m venv .venv                        # create virtual env
+.venv/bin/pip install -r requirements.txt   # install deps
+```
+
+- Run tests:
+
+```bash
+.venv/bin/pytest -v                         # run tests
+```
+
+- Run a Python file:
+
+```bash
+.venv/bin/python <path/to/file.py>          # run any module/script
+```
+Run all commands from repo root.
 
 ## Pinout
 
@@ -42,4 +64,4 @@ docs/        full spec + design notes
 
 ## Team
 
-Shalom, Yair-Dekel, Smallejoo
+shalom2552, Yair-Dekel, Smallejoo
