@@ -24,3 +24,4 @@ clean:
 	rm -f test_codec test_cross_vectors *.o host/*.o ../firmware/protocol/*.o
 
 .PHONY: all run clean
+
