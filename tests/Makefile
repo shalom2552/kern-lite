@@ -1,7 +1,8 @@
 CC = g++
 CFLAGS = -Wall -std=c++17 -Wextra -pedantic
-PYTHON = python
+
 PYTHONPATH = ..
+PYTEST = ../.venv/bin/pytest
 
 COMMON = ../firmware/protocol/codec.cpp ../firmware/protocol/crc32.cpp
 
@@ -16,8 +17,8 @@ test_cross_vectors: host/test_cross_vectors.cpp $(COMMON)
 run: all
 	./test_codec
 	./test_cross_vectors
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest gs/test_codec.py -v
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest gs/test_cross_vectors.py -v
+	PYTHONPATH=$(PYTHONPATH) $(PYTEST) gs/test_codec.py -v
+	PYTHONPATH=$(PYTHONPATH) $(PYTEST) gs/test_cross_vectors.py -v
 
 clean:
 	rm -f test_codec test_cross_vectors *.o host/*.o ../firmware/protocol/*.o
