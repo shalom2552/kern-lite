@@ -1,3 +1,10 @@
+"""
+helper file that creates and sends command frames
+
+file: tests/gs/test_cross_vectors.py
+author: Smallejoo
+date: 2026-06-07
+"""
 from groundstation.frame import Frame, FrameType
 
 

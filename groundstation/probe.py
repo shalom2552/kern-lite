@@ -1,6 +1,12 @@
+"""
+manual terminal script for real board testing
+
+file: tests/gs/test_cross_vectors.py
+author: Smallejoo
+date: 2026-06-07
+"""
 import argparse
 import time
-
 from groundstation.link import SerialLink
 from groundstation.commands import CommandSender
 from groundstation.frame import Frame, FrameType, NackCode

@@ -1,7 +1,13 @@
+"""
+manages the UART connection
+
+file: tests/gs/test_cross_vectors.py
+author: Smallejoo
+date: 2026-06-07
+"""
 import time
 import threading
 from typing import Optional
-
 import serial
 
 from groundstation.frame import Frame, Decoder, encode, FrameType, CrcError, SyncError

@@ -1,3 +1,10 @@
+"""
+test file that uses hardcoded captured UART
+
+file: tests/gs/test_cross_vectors.py
+author: Smallejoo
+date: 2026-06-07
+"""
 from groundstation.frame import Decoder  
 
 
@@ -54,4 +61,3 @@ def test_nack_bad_command_decodes():
     assert frame.type == NACK_TYPE
     assert len(frame.payload) == 1
     assert frame.payload[0] == BAD_COMMAND
-    
