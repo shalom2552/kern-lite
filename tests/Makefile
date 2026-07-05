@@ -1,3 +1,4 @@
+# append the new target name (without .cpp) to the TRG variable
 CC = g++
 CFLAGS = -Wall -std=c++17 -Wextra -pedantic
 
