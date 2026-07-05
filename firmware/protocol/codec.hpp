@@ -11,17 +11,19 @@ size_t encode(const Frame& f, uint8_t* outBuf, size_t outSize);
 class Decoder {
 public:
     DecodeResult feed(uint8_t byte);
-    const Frame& frame() const { return m_frame; }
+    const Frame& frame() const;
     void reset();
 
 private:
-    void rearm(); // resets state machine but preserves m_frame for the caller
+    /* resets state machine but preserves m_frame for the caller */
+    void rearm();
 
     enum class State {
         WaitStx, Type, LenLo, LenHi, Payload,
         Crc0, Crc1, Crc2, Crc3, WaitEtx
     };
 
+private:
     State m_state = State::WaitStx;
     Frame m_frame{};
     uint16_t m_payloadIdx = 0;
