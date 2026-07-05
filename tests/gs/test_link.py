@@ -54,3 +54,4 @@ def test_nack_bad_command_decodes():
     assert frame.type == NACK_TYPE
     assert len(frame.payload) == 1
     assert frame.payload[0] == BAD_COMMAND
+    
