@@ -1,27 +1,31 @@
+# append the new target name (without .cpp) to the TRG variable
 CC = g++
 CFLAGS = -Wall -std=c++17 -Wextra -pedantic
 
 PYTHONPATH = ..
-PYTEST = ../.venv/bin/pytest
+VENV = ../.venv
+VPYTHON = $(VENV)/bin/python
+PYTEST = $(VENV)/bin/pytest
 
 COMMON = ../firmware/protocol/codec.cpp ../firmware/protocol/crc32.cpp
+TRG = test_codec test_cross_vectors
 
-all: test_codec test_cross_vectors
+all: $(TRG)
 
-test_codec: host/test_codec.cpp $(COMMON)
-	$(CC) $(CFLAGS) -o test_codec host/test_codec.cpp $(COMMON)
+$(VENV):
+	python3 -m venv $(VENV)
+	$(VPYTHON) -m pip install -r requirements.txt
 
-test_cross_vectors: host/test_cross_vectors.cpp $(COMMON)
-	$(CC) $(CFLAGS) -o test_cross_vectors host/test_cross_vectors.cpp $(COMMON)
+$(TRG): %: host/%.cpp $(COMMON)
+	$(CC) $(CFLAGS) -o $@ $^
 
-run: all
-	./test_codec
-	./test_cross_vectors
-	PYTHONPATH=$(PYTHONPATH) $(PYTEST) gs/test_codec.py -v
-	PYTHONPATH=$(PYTHONPATH) $(PYTEST) gs/test_cross_vectors.py -v
+run: all $(VENV)
+	@for exe in $(TRG); do \
+		./$$exe || exit 1; \
+	done
+	PYTHONPATH=$(PYTHONPATH) $(PYTEST) gs/ -v
 
 clean:
-	rm -f test_codec test_cross_vectors *.o host/*.o ../firmware/protocol/*.o
+	rm -f $(TRG) *.o host/*.o ../firmware/protocol/*.o
 
 .PHONY: all run clean
-
