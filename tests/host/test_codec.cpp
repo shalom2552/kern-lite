@@ -1,5 +1,10 @@
-// Standalone host test: no STM32 headers. Compile against
-// firmware/protocol/crc32.* and firmware/protocol/codec.* only.
+/*
+	Tests for crc32 and codec
+
+	file: firmware/protocol/crc32.cpp
+	Author: Yair
+	date: 03.07.26
+*/
 #include "../../firmware/protocol/crc32.hpp"
 #include "../../firmware/protocol/codec.hpp"
 #include <cassert>
