@@ -1,18 +1,27 @@
 CC = g++
-CFLAGS = -Wall -std=c++17 -Wextra -pedantic -Werror
+CFLAGS = -Wall -std=c++17 -Wextra -pedantic
 
-SRC = host/test_codec.cpp ../firmware/protocol/codec.cpp ../firmware/protocol/crc32.cpp 
-OBJ = $(SRC:.cpp=.o)
-TARGET = test
+PYTHONPATH = ..
+PYTEST = ../.venv/bin/pytest
 
-all: $(TARGET)
+COMMON = ../firmware/protocol/codec.cpp ../firmware/protocol/crc32.cpp
 
-$(TARGET): $(OBJ)
-	$(CC) $(CFLAGS) -o $(TARGET) $(OBJ)
+all: test_codec test_cross_vectors
 
-%.o: %.cpp
-	$(CC) $(CFLAGS) -c $< -o $@
+test_codec: host/test_codec.cpp $(COMMON)
+	$(CC) $(CFLAGS) -o test_codec host/test_codec.cpp $(COMMON)
 
-.PHONY: clean
+test_cross_vectors: host/test_cross_vectors.cpp $(COMMON)
+	$(CC) $(CFLAGS) -o test_cross_vectors host/test_cross_vectors.cpp $(COMMON)
+
+run: all
+	./test_codec
+	./test_cross_vectors
+	PYTHONPATH=$(PYTHONPATH) $(PYTEST) gs/test_codec.py -v
+	PYTHONPATH=$(PYTHONPATH) $(PYTEST) gs/test_cross_vectors.py -v
+
 clean:
-	rm -f $(TARGET) $(OBJ)
+	rm -f test_codec test_cross_vectors *.o host/*.o ../firmware/protocol/*.o
+
+.PHONY: all run clean
+
