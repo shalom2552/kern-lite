@@ -7,7 +7,7 @@ MCU - STM32L476RG.
 ## Status
 
 - [x] Phase 0 — Project setup, RTOS smoke test
-- [ ] Phase 1 — CRC-32 + frame codec
+- [x] Phase 1 — CRC-32 + frame codec
 - [ ] Phase 2 — UART round-trip (STATUS/ACK)
 - [ ] Phase 3 — Sensors, DSP, live SensorRecord stream
 - [ ] Phase 4 — Circular file storage, replay, recovery
