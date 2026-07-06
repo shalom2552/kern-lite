@@ -1,7 +1,7 @@
 """
 manages the UART connection
 
-file: tests/gs/test_cross_vectors.py
+file: groundstation/link.py
 author: Smallejoo
 date: 2026-06-07
 """

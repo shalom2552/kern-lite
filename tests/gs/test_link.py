@@ -1,7 +1,7 @@
 """
 test file that uses hardcoded captured UART
 
-file: tests/gs/test_cross_vectors.py
+file: tests/gs/test_link.py
 author: Smallejoo
 date: 2026-06-07
 """

@@ -1,7 +1,7 @@
 """
 manual terminal script for real board testing
 
-file: tests/gs/test_cross_vectors.py
+file: groundstation/probe.py
 author: Smallejoo
 date: 2026-06-07
 """
