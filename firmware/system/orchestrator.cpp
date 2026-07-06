@@ -39,10 +39,9 @@ void Orchestrator::runSensorTask()
 	using kern::dsp::ThresholdDetector;
 	using kern::storage::SensorRecord;
 
-	static kern::sensors::Lm35 lm35_s;
 	static kern::sensors::Dht11 dht11_s;
 	static kern::sensors::RadiationLatch latch_s;
-
+	static kern::sensors::Lm35 lm35_s(&hadc1);
 	static kern::sensors::Photodiode photo_s(&hadc1);
 	static kern::sensors::Potentiometer pot_s(&hadc1);
 

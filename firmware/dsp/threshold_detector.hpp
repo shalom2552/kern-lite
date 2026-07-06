@@ -5,8 +5,8 @@
 namespace kern::dsp {
 
 struct ThresholdConfig {
-	float lo; // LowAlert below this
-	float hi; // HighAlert above this
+	float lo;		  // LowAlert below this
+	float hi; 		  // HighAlert above this
 	float hysteresis; // must move this far back inside bounds to remove alert
 };
 

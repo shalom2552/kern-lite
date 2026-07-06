@@ -4,24 +4,31 @@
 
 namespace kern::sensors {
 
-class Lm35
-{
+class Photodiode {
 public:
-	//get adc port
-	explicit Lm35(ADC_HandleTypeDef* adc)
+	explicit Photodiode(ADC_HandleTypeDef* adc)
 	: m_adc(adc)
-	{
-	}
+	{}
 
 	void init()
 	{
 	}
 
-	float readCelsius()
+	float readNormalized()
 	{
 		uint32_t raw = readRaw();
 		float volts = toVolts(raw);
-		return volts * 100.0f;
+		float normalized = volts / 3.3f;
+
+		if (normalized < 0.0f) {
+			normalized = 0.0f;
+		}
+
+		if (normalized > 1.0f) {
+			normalized = 1.0f;
+		}
+
+		return normalized;
 	}
 
 private:
@@ -32,9 +39,7 @@ private:
 		}
 
 		ADC_ChannelConfTypeDef sConfig{};
-
-		//config to read from sensor
-		sConfig.Channel = ADC_CHANNEL_9;
+		sConfig.Channel = ADC_CHANNEL_6;
 		sConfig.Rank = ADC_REGULAR_RANK_1;
 		sConfig.SamplingTime = ADC_SAMPLETIME_47CYCLES_5;
 		sConfig.SingleDiff = ADC_SINGLE_ENDED;
@@ -51,9 +56,8 @@ private:
 			HAL_ADC_Stop(m_adc);
 			return 0;
 		}
-		//read from adc
-		uint32_t raw = HAL_ADC_GetValue(m_adc);
 
+		uint32_t raw = HAL_ADC_GetValue(m_adc);
 		HAL_ADC_Stop(m_adc);
 
 		return raw;
