@@ -8,7 +8,7 @@ VPYTHON = $(VENV)/bin/python
 PYTEST = $(VENV)/bin/pytest
 
 COMMON = ../firmware/protocol/codec.cpp ../firmware/protocol/crc32.cpp
-TRG = test_codec test_cross_vectors
+TRG = test_codec test_cross_vectors test_dsp
 
 all: $(TRG)
 
