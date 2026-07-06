@@ -38,6 +38,10 @@ Run a Python file:
 ```bash
 .venv/bin/python <path/to/file.py>
 ```
+Check Python syntax:
+```bash
+.venv/bin/python3 -m py_compile <path-to-file> && echo OK || echo FAIL
+```
 </details>
 
 <details>
@@ -56,6 +60,10 @@ Run tests:
 Run a Python file:
 ```bash
 .venv\Scripts\python <path\to\file.py>
+```
+Check Python syntax:
+```bash
+.venv\Scripts\python -m py_compile <path-to-file> && echo OK || echo FAIL
 ```
 </details>
 
