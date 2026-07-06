@@ -66,8 +66,7 @@ def encode(frame: Frame) -> bytes:
     returns the encoded bytes of the frame.
     """
     payload_len = len(frame.payload)
-    frame_type = int(frame.type)
-    header = struct.pack('<BH', frame_type, payload_len)
+    header = struct.pack('<BH', frame.type.value, payload_len)
     crc_data = header + frame.payload
     crc_val = crc32(crc_data)
     return bytes([STX]) + crc_data + struct.pack('<I', crc_val) + bytes([ETX])
