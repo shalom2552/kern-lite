@@ -34,6 +34,11 @@ size_t encode(const Frame& f, uint8_t* outBuf, size_t outSize) {
     return i; // == total
 }
 
+const Frame& Decoder::frame() const
+{
+    return m_frame;
+}
+
 void Decoder::reset() {
     m_state = State::WaitStx;
     m_frame = Frame{};

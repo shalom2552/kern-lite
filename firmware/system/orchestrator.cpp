@@ -15,6 +15,7 @@ namespace kern::system {
 void Orchestrator::init()
 {
     bus.init();
+    link.init();
 }
 
 void Orchestrator::runSensorTask()
@@ -34,6 +35,10 @@ void Orchestrator::runStorageTask()
 void Orchestrator::runCommsTask()
 {
     for (;;) {
+        kern::protocol::Frame f{};
+        if (link.poll(f)) {
+            handler.dispatch(f); // stub handler
+        }
         vTaskDelay(pdMS_TO_TICKS(10));
     }
 }

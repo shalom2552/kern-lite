@@ -15,27 +15,53 @@ MCU - STM32L476RG.
 - [ ] Phase 6 — Ground station analytics
 - [ ] Phase 7 — Fault injection, validation, demo
 
+---
+
 ## Running the Ground Station (Python)
+Python tests runs in an isolated Python virtualenv (`.venv`) for portability and separation from system packages. <br>
+Activate/invoke it per-OS:
 
-- First-time setup:
-
+<details>
+<summary>Linux / macOS / WSL</summary>
+<br>
+  
+First-time setup:
 ```bash
-python -m venv .venv                        # create virtual env
-.venv/bin/pip install -r requirements.txt   # install deps
+python -m venv .venv
+.venv/bin/pip install -r requirements.txt
 ```
-
-- Run tests:
-
+Run tests:
 ```bash
-.venv/bin/pytest -v                         # run tests
+.venv/bin/pytest -v
 ```
-
-- Run a Python file:
-
+Run a Python file:
 ```bash
-.venv/bin/python <path/to/file.py>          # run any module/script
+.venv/bin/python <path/to/file.py>
 ```
+</details>
+
+<details>
+<summary>Windows (cmd)</summary>
+<br>
+  
+First-time setup:
+```bash
+python -m venv .venv
+.venv\Scripts\pip install -r requirements.txt
+```
+Run tests:
+```bash
+.venv\Scripts\pytest -v
+```
+Run a Python file:
+```bash
+.venv\Scripts\python <path\to\file.py>
+```
+</details>
+
 Run all commands from repo root.
+
+---
 
 ## Pinout
 
