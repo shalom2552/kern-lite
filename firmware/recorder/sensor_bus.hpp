@@ -1,3 +1,11 @@
+/*
+Double-buffered SensorRecord bus for sharing latest sensor data.
+
+file: firmware/recorder/sensor_bus.hpp
+author: Smallejoo
+date: 2026-06-07
+*/
+
 #pragma once
 
 #include "../storage/sensor_record.hpp"
