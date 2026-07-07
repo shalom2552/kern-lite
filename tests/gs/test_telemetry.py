@@ -2,6 +2,8 @@
 Tests for RecordDecoder, TelemetryModel, and DeviceStateModel.
 
 file: tests/gs/test_telemetry.py
+author: shalom2552
+date: 2026-07-07
 """
 import struct
 

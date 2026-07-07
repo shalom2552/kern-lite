@@ -1,12 +1,6 @@
 """
 Decodes 32-byte SensorRecord payloads and tracks running telemetry stats.
 
-file: groundstation/telemetry.py
-author: Yair
-date: 2026-06-07
-"""
-
-"""
 This module provides:
 - SensorRecord: Dataclass representation of a 32-byte sensor payload with
   temperature, humidity, light, and potentiometer readings.
@@ -22,6 +16,10 @@ Binary layout (spec sections 9.2/9.3), little-endian:
 
 All temperature values are stored as tenths of degrees Celsius (e.g., 253 = 25.3°C).
 Humidity and normalized sensor values are stored as whole numbers (e.g., 450 = 45.0%).
+
+file: groundstation/telemetry.py
+author: Yair
+date: 2026-06-07
 """
 from __future__ import annotations
 

@@ -1,12 +1,6 @@
 """
 Tracks device state machine and command validation rules.
 
-file: groundstation/state.py
-author: Yair
-date: 2026-06-07
-"""
-
-"""
 This module implements the device state model per specification section 8.6/12:
 - State transitions: Idle <-> Recording, and entry to Fault state
 - Transition history: Records wall-time, sequence, duration in previous state
@@ -14,6 +8,10 @@ This module implements the device state model per specification section 8.6/12:
   (e.g., START is only valid in Idle, STOP only in Recording)
 
 The model monitors the device via STATUS frames and enforces state machine rules.
+
+file: groundstation/state.py
+author: Yair
+date: 2026-06-07
 """
 from __future__ import annotations
 
@@ -32,7 +30,7 @@ STATE_FAULT = 2       # Device in fault state (hardware or sensor failure)
 @dataclass
 class Transition:
     """Records a state transition event.
-    
+
     Attributes:
         wall_time: Unix timestamp when transition occurred
         session_seq: Session sequence number at time of transition
