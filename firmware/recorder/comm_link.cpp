@@ -64,3 +64,10 @@ void CommLink::send(const protocol::Frame& f)
 }
 
 } // namespace kern::recorder
+
+extern "C" void HAL_UART_RxCpltCallback(UART_HandleTypeDef* huart)
+{
+    if (huart == &huart2 && kern::recorder::g_comm_link != nullptr) {
+        kern::recorder::g_comm_link->feed(kern::recorder::g_comm_link->m_rx_byte);
+    }
+}

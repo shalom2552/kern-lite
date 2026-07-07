@@ -34,7 +34,7 @@ void CommandHandler::sendNack(protocol::NackCode code)
 void CommandHandler::sendStatus()
 {
     protocol::Frame f{};
-    f.type = protocol::FrameType::CmdStatus;
+    f.type = protocol::FrameType::Status;
     f.len = 14;
 
     f.payload[0] = 0; // state: idle

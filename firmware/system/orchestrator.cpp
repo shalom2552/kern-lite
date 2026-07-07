@@ -6,13 +6,8 @@
 #include <cstring>
 #include <cstdint>
 
-#include "../sensors/lm35.hpp"
 #include "../sensors/dht11.hpp"
-#include "../sensors/radiation_latch.hpp"
-#include "../sensors/photodiode.hpp"
-#include "../sensors/potentiometer.hpp"
-
-#include "../dsp/channel.hpp"
+#include "../dsp/threshold_detector.hpp"
 #include "../protocol/frame.hpp"
 #include "../protocol/crc32.hpp"
 
@@ -29,171 +24,129 @@ namespace kern::system {
 
 void Orchestrator::init()
 {
-    bus.init();
-    link.init();
+    m_bus.init();
+    m_link.init();
+}
+
+kern::storage::SensorRecord Orchestrator::assembleRecord()
+{
+	using kern::dsp::ThresholdDetector;
+	using kern::storage::SensorRecord;
+
+	SensorRecord rec{};
+	uint8_t alertBits = 0;
+	uint8_t faultBits = 0;
+
+	uint32_t now = HAL_GetTick();
+	rec.timestamp = now / 1000u;
+	rec.ms = static_cast<uint16_t>(now % 1000u);
+	rec.seq = ++m_recSeq;
+	rec.state = 0;
+
+	float lm35Temp = m_lm35.readCelsius();
+	auto lm35Out = m_chLm35.process(lm35Temp);
+	rec.lm35_c = static_cast<int16_t>(lm35Out.filtered * 10.0f);
+	if (lm35Temp < -10.0f || lm35Temp > 100.0f) {
+		faultBits |= kern::storage::kFaultLm35Range;
+	}
+
+	float lightRaw = m_photo.readNormalized();
+	auto photoOut = m_chPhoto.process(lightRaw);
+	rec.light = static_cast<uint16_t>(photoOut.filtered * 65535.0f);
+	if (lightRaw <= 0.001f || lightRaw >= 0.999f) {
+		faultBits |= kern::storage::kFaultLightStuck;
+	}
+
+	float potRaw = m_pot.readNormalized();
+	auto potOut = m_chPot.process(potRaw);
+	rec.pot = static_cast<uint16_t>(potOut.filtered * 65535.0f);
+	if (potRaw <= 0.001f || potRaw >= 0.999f) {
+		faultBits |= kern::storage::kFaultPotStuck;
+	}
+
+	// DHT11 supports ~2 s updates; sample every 20 ticks and reuse the last good value.
+	if ((m_sensorTick % 20u) == 0u) {
+		float dhtTemp = 0.0f;
+		float dhtHum = 0.0f;
+
+		kern::sensors::Dht11::Status st = m_dht11.read(dhtTemp, dhtHum);
+
+		if (st == kern::sensors::Dht11::Status::Ok) {
+			m_lastDhtTemp = dhtTemp;
+			m_lastDhtHum = dhtHum;
+		}
+		else if (st == kern::sensors::Dht11::Status::Timeout) {
+			faultBits |= kern::storage::kFaultDhtTimeout;
+		}
+		else {
+			faultBits |= kern::storage::kFaultDhtBadData;
+		}
+	}
+
+	auto dhtTempOut = m_chDhtTemp.process(m_lastDhtTemp);
+	auto dhtHumOut = m_chDhtHum.process(m_lastDhtHum);
+	rec.dht_temp_c = static_cast<int16_t>(dhtTempOut.filtered * 10.0f);
+	rec.dht_hum = static_cast<uint16_t>(dhtHumOut.filtered * 10.0f);
+
+	// alert_bits per spec 9.4; must match groundstation/telemetry.py.
+	if (lm35Out.alert == ThresholdDetector::State::HighAlert) {
+		alertBits |= 0x01;
+	}
+	else if (lm35Out.alert == ThresholdDetector::State::LowAlert) {
+		alertBits |= 0x02;
+	}
+
+	if (photoOut.alert == ThresholdDetector::State::HighAlert) {
+		alertBits |= 0x04;
+	}
+	else if (photoOut.alert == ThresholdDetector::State::LowAlert) {
+		alertBits |= 0x08;
+	}
+
+	if (potOut.alert == ThresholdDetector::State::HighAlert) {
+		alertBits |= 0x10;
+	}
+	else if (potOut.alert == ThresholdDetector::State::LowAlert) {
+		alertBits |= 0x20;
+	}
+
+	if (dhtTempOut.alert == ThresholdDetector::State::HighAlert) {
+		alertBits |= 0x40;
+	}
+
+	if (dhtHumOut.alert == ThresholdDetector::State::HighAlert) {
+		alertBits |= 0x80;
+	}
+
+	rec.alert_bits = alertBits;
+	rec.fault_bits = faultBits;
+	rec.crc32 = kern::protocol::crc32(
+		reinterpret_cast<const uint8_t*>(&rec),
+		offsetof(SensorRecord, crc32)
+	);
+
+	++m_sensorTick;
+	return rec;
 }
 
 void Orchestrator::runSensorTask()
 {
-	//getting all the verbs ready
-	using kern::dsp::ThresholdDetector;
-	using kern::storage::SensorRecord;
-
-	static kern::sensors::Dht11 dht11_s;
-	static kern::sensors::RadiationLatch latch_s;
-	static kern::sensors::Lm35 lm35_s(&hadc1);
-	static kern::sensors::Photodiode photo_s(&hadc1);
-	static kern::sensors::Potentiometer pot_s(&hadc1);
-
-	// getting there thresholds
-	static kern::dsp::Channel<kern::config::kDspWindow> chLm35(kern::config::kLm35Threshold);
-	static kern::dsp::Channel<kern::config::kDspWindow> chPhoto(kern::config::kPhotoThreshold);
-	static kern::dsp::Channel<kern::config::kDspWindow> chPot(kern::config::kPotThreshold);
-	static kern::dsp::Channel<kern::config::kDspWindow> chDhtTemp(kern::config::kDhtTempThreshold);
-	static kern::dsp::Channel<kern::config::kDspWindow> chDhtHum(kern::config::kDhtHumThreshold);
-
-	static bool initialized = false;
-	static uint16_t recSeq = 0;
-	static uint32_t sensorTick = 0;
-
-	static float lastDhtTemp = 0.0f;
-	static float lastDhtHum = 0.0f;
-
-	if (!initialized) {
-		lm35_s.init();
-		dht11_s.init();
-		latch_s.init();
-		photo_s.init();
-		pot_s.init();
-
-		initialized = true;
-	}
+	m_lm35.init();
+	m_dht11.init();
+	m_latch.init();
+	m_photo.init();
+	m_pot.init();
 
 	for (;;) {
-		SensorRecord rec{};
-		uint8_t alertBits = 0;
-		uint8_t faultBits = 0;
+		kern::storage::SensorRecord rec = assembleRecord();
+		m_bus.publish(rec);
 
-		uint32_t now = HAL_GetTick();
-
-		rec.timestamp = now / 1000u;
-		rec.ms = static_cast<uint16_t>(now % 1000u);
-		rec.seq = ++recSeq;
-		rec.state = 0; //Later connect to state machine.
-
-		//read sensors
-		float lm35Temp = lm35_s.readCelsius();
-		auto lm35Out = chLm35.process(lm35Temp);
-		rec.lm35_c = static_cast<int16_t>(lm35Out.filtered * 10.0f);
-
-		//if range is wrong
-		if (lm35Temp < -10.0f || lm35Temp > 100.0f) {
-			faultBits |= kern::storage::kFaultLm35Range;
-		}
-
-		float lightRaw = photo_s.readNormalized();
-		auto photoOut = chPhoto.process(lightRaw);
-		rec.light = static_cast<uint16_t>(photoOut.filtered * 65535.0f);
-
-		if (lightRaw <= 0.001f || lightRaw >= 0.999f) {
-			faultBits |= kern::storage::kFaultLightStuck;
-		}
-
-		float potRaw = pot_s.readNormalized();
-		auto potOut = chPot.process(potRaw);
-		rec.pot = static_cast<uint16_t>(potOut.filtered * 65535.0f);
-
-		if (potRaw <= 0.001f || potRaw >= 0.999f) {
-			faultBits |= kern::storage::kFaultPotStuck;
-		}
-
-		//read DHT11 every 20 ticks
-		if ((sensorTick % 20u) == 0u) {
-			float dhtTemp = 0.0f;
-			float dhtHum = 0.0f;
-
-			kern::sensors::Dht11::Status st = dht11_s.read(dhtTemp, dhtHum);
-
-			if (st == kern::sensors::Dht11::Status::Ok) {
-				lastDhtTemp = dhtTemp;
-				lastDhtHum = dhtHum;
-			}
-			else if (st == kern::sensors::Dht11::Status::Timeout) {
-				faultBits |= kern::storage::kFaultDhtTimeout;
-			}
-			else {
-				faultBits |= kern::storage::kFaultDhtBadData;
-			}
-		}
-
-		//read temp and hume
-		auto dhtTempOut = chDhtTemp.process(lastDhtTemp);
-		auto dhtHumOut = chDhtHum.process(lastDhtHum);
-
-		//cast them to int from float
-		rec.dht_temp_c = static_cast<int16_t>(dhtTempOut.filtered * 10.0f);
-		rec.dht_hum = static_cast<uint16_t>(dhtHumOut.filtered * 10.0f);
-
-		if (latch_s.consumeEvent()) {
-			//no action today. Event system removed for Day 3.
-		}
-
-		// alert_bits mapping must match spec 9.4 and groundstation/telemetry.py
-		// lm35: high=0x01, low=0x02
-		if (lm35Out.alert == ThresholdDetector::State::HighAlert) {
-			alertBits |= 0x01;
-		}
-		else if (lm35Out.alert == ThresholdDetector::State::LowAlert) {
-			alertBits |= 0x02;
-		}
-
-		// light: high=0x04, low=0x08
-		if (photoOut.alert == ThresholdDetector::State::HighAlert) {
-			alertBits |= 0x04;
-		}
-		else if (photoOut.alert == ThresholdDetector::State::LowAlert) {
-			alertBits |= 0x08;
-		}
-
-		// pot: high=0x10, low=0x20
-		if (potOut.alert == ThresholdDetector::State::HighAlert) {
-			alertBits |= 0x10;
-		}
-		else if (potOut.alert == ThresholdDetector::State::LowAlert) {
-			alertBits |= 0x20;
-		}
-
-		// dht_temp: only high alert exists = 0x40
-		if (dhtTempOut.alert == ThresholdDetector::State::HighAlert) {
-			alertBits |= 0x40;
-		}
-
-		// dht_hum: only high alert exists = 0x80
-		if (dhtHumOut.alert == ThresholdDetector::State::HighAlert) {
-			alertBits |= 0x80;
-		}
-
-		// update in the record its fields
-		rec.alert_bits = alertBits;
-		rec.fault_bits = faultBits;
-		// make crc code and update it
-		rec.crc32 = kern::protocol::crc32(
-			reinterpret_cast<const uint8_t*>(&rec),
-			offsetof(SensorRecord, crc32)
-		);
-		//send it via bus so others can use what we recorded .
-		bus.publish(rec);
-
-
+		// Temporary live stream until the Comms task owns RECORD framing in Phase 5.
 		kern::protocol::Frame out{};
 		out.type = kern::protocol::FrameType::Record;
-		out.len = sizeof(SensorRecord);
-		// coppy our record to a frame
-		std::memcpy(out.payload, &rec, sizeof(SensorRecord));
-		// send it via uart
-		link.send(out);
-
-		++sensorTick;
+		out.len = sizeof(kern::storage::SensorRecord);
+		std::memcpy(out.payload, &rec, sizeof(kern::storage::SensorRecord));
+		m_link.send(out);
 
 		vTaskDelay(pdMS_TO_TICKS(kern::config::kSensorPeriodMs));
 	}
@@ -210,8 +163,8 @@ void Orchestrator::runCommsTask()
 {
     for (;;) {
         kern::protocol::Frame f{};
-        if (link.poll(f)) {
-            handler.dispatch(f); // stub handler
+        if (m_link.poll(f)) {
+            m_handler.dispatch(f); // stub handler
         }
         vTaskDelay(pdMS_TO_TICKS(10));
     }
@@ -219,10 +172,19 @@ void Orchestrator::runCommsTask()
 
 void Orchestrator::runSystemTask()
 {
+    // PC9 is the only liveness indicator until state-based LEDs are wired in Day 5,
+    // so blink it at 1 Hz from the 50 ms System task.
+    const uint32_t ledTicks = 1000u / kern::config::kSystemPeriodMs;
+    uint32_t ledCounter = 0;
 
     for (;;) {
-        hal::gpio::toggle(board::LED1_BLUE);
         hal::watchdog::kick(hiwdg);
+
+        if (++ledCounter >= ledTicks) {
+            hal::gpio::toggle(board::LED1_BLUE);
+            ledCounter = 0;
+        }
+
         vTaskDelay(pdMS_TO_TICKS(kern::config::kSystemPeriodMs));
     }
 }
