@@ -8,7 +8,7 @@ date: 2026-06-07
 from groundstation.frame import Decoder  
 
 
-# Later replace these with real hex copied from probe.py / serial monitor.
+# TODO: Later replace these with real hex copied from probe.py / serial monitor.
 STATUS_HEX = ""
 NACK_BAD_COMMAND_HEX = ""
 
@@ -32,6 +32,7 @@ def decode_hex_stream(hex_string: str):
 
 
 def test_status_vector_decodes():
+    # TODO: remove this when done
     if STATUS_HEX == "":
         return  
 
