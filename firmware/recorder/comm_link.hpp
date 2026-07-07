@@ -15,6 +15,8 @@
 
 #include <cstdint>
 
+extern "C" void HAL_UART_RxCpltCallback(UART_HandleTypeDef* huart);
+
 namespace kern::recorder {
 
 class CommLink {
@@ -28,6 +30,8 @@ public:
     void send(const protocol::Frame& f);
 
 private:
+    friend void ::HAL_UART_RxCpltCallback(UART_HandleTypeDef* huart);
+
     UART_HandleTypeDef* m_huart = nullptr;
 
     protocol::Decoder m_decoder;
