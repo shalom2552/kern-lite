@@ -1,8 +1,14 @@
-#pragma once
+/*
+ADC wrapper config for the gate.
 
+file: firmware/hal/adc.hpp
+author: Smallejoo
+date: 2026-06-07
+*/
+
+#pragma once
 #include "stm32l4xx_hal.h"
 #include "../system/board.hpp"
-
 #include <cstdint>
 
 namespace kern::hal::adc {

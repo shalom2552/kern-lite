@@ -1,3 +1,10 @@
+/*
+configuration constants.
+
+file: firmware/system/config.hpp
+author: Smallejoo
+date: 2026-06-07
+*/
 #pragma once
 
 #include <cstdint>
