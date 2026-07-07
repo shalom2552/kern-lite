@@ -8,14 +8,13 @@ date: 2026-06-07
 from groundstation.frame import Decoder  
 
 
-# TODO: Later replace these with real hex copied from probe.py / serial monitor.
-STATUS_HEX = ""
-NACK_BAD_COMMAND_HEX = ""
+STATUS_HEX = "AB 12 0E 00 00 01 04 00 00 00 00 00 00 00 00 00 00 00 56 EC 90 F4 CD"
+NACK_BAD_COMMAND_HEX = "AB 21 01 00 02 5C 1C 06 D6 CD"
 
 
-STATUS_TYPE = 0x82
-NACK_TYPE = 0x81
-BAD_COMMAND = 0x01
+STATUS_TYPE = 0x12
+NACK_TYPE = 0x21
+BAD_COMMAND = 0x02
 
 
 def decode_hex_stream(hex_string: str):
@@ -30,9 +29,7 @@ def decode_hex_stream(hex_string: str):
 
     return None
 
-
 def test_status_vector_decodes():
-    # TODO: remove this when done
     if STATUS_HEX == "":
         return  
 
