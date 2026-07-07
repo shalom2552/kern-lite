@@ -10,6 +10,7 @@ import time
 from groundstation.link import SerialLink
 from groundstation.commands import CommandSender
 from groundstation.frame import Frame, FrameType, NackCode
+from groundstation.telemetry import RecordDecoder
 
 
 def print_status(payload: bytes):
@@ -36,13 +37,16 @@ def print_status(payload: bytes):
     print(f"records_in_file: {records_in_file}")
 
 
-def wait_for_frame(link: SerialLink, timeout_s: float):
+def wait_for_reply(link: SerialLink, timeout_s: float):
+    # Skip the live RECORD stream and return the next command reply frame.
     start = time.time()
 
     while time.time() - start < timeout_s:
         frame = link.receive_frame()
 
         if frame is not None:
+            if frame.type == FrameType.Record:
+                continue
             return frame
 
         time.sleep(0.01)
@@ -50,10 +54,70 @@ def wait_for_frame(link: SerialLink, timeout_s: float):
     return None
 
 
+def capture_records(link: SerialLink, duration_s: float, max_print: int):
+    print(f"Capturing RECORD frames for {duration_s:.0f} s...")
+
+    start = time.time()
+    count = 0
+    printed = 0
+    crc_failures = 0
+    seq_gaps = 0
+    last_seq = None
+
+    while time.time() - start < duration_s:
+        frame = link.receive_frame()
+
+        if frame is None:
+            time.sleep(0.005)
+            continue
+
+        if frame.type != FrameType.Record:
+            continue
+
+        try:
+            rec = RecordDecoder.decode(frame.payload)
+        except ValueError as e:
+            print(f"bad record: {e}")
+            continue
+
+        count += 1
+
+        crc_ok = rec.record_crc_valid()
+        if not crc_ok:
+            crc_failures += 1
+
+        if last_seq is not None:
+            expected = (last_seq + 1) & 0xFFFF
+            if rec.seq != expected:
+                seq_gaps += 1
+        last_seq = rec.seq
+
+        if printed < max_print:
+            printed += 1
+            print(
+                f"seq={rec.seq} "
+                f"lm35={rec.lm35_celsius:.1f}C "
+                f"dht={rec.dht_temp_celsius:.1f}C/{rec.dht_humidity:.1f}% "
+                f"light={rec.light_normalized:.3f} "
+                f"pot={rec.pot_normalized:.3f} "
+                f"alert=0x{rec.alert_bits:02X} fault=0x{rec.fault_bits:02X} "
+                f"crc={'ok' if crc_ok else 'BAD'}"
+            )
+
+    print()
+    print(f"records: {count}")
+    print(f"crc_failures: {crc_failures}")
+    print(f"seq_gaps: {seq_gaps}")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", required=True)
     parser.add_argument("--baud", type=int, default=115200)
+    parser.add_argument("--capture", type=float, default=30.0,
+                        help="seconds to capture the live RECORD stream")
+    parser.add_argument("--max-print", type=int, default=10,
+                        help="how many decoded records to print")
     args = parser.parse_args()
 
     link = SerialLink()
@@ -66,8 +130,8 @@ def main():
         print("Sending CMD_STATUS...")
         commands.send_status(link)
 
-        frame = wait_for_frame(link, 2.0)
-        
+        frame = wait_for_reply(link, 2.0)
+
         if frame is None:
             print("No STATUS response")
         elif frame.type == FrameType.Status:
@@ -83,7 +147,7 @@ def main():
         link.record_command(0xFF)
         link.send_frame(Frame(0xFF, b""))
 
-        frame = wait_for_frame(link, 2.0)
+        frame = wait_for_reply(link, 2.0)
 
         if frame is None:
             print("No NACK response")
@@ -94,6 +158,10 @@ def main():
                 print("NACK BadCommand confirmed")
         else:
             print(f"Unexpected frame type: {frame.type}")
+
+        print()
+        if args.capture > 0:
+            capture_records(link, args.capture, args.max_print)
 
         print()
         print("Counters:")
