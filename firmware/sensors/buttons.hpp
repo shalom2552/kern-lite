@@ -1,3 +1,10 @@
+/*
+Button polling helper for SW1 short and long press detection.
+
+file: firmware/sensors/buttons.hpp
+author: Smallejoo
+date: 2026-06-07
+*/
 #pragma once
 
 #include "stm32l4xx_hal.h"

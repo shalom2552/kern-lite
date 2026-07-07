@@ -1,3 +1,11 @@
+/*
+DHT11 temperature and humidity sensor driver implementation.
+
+file: firmware/sensors/dht11.cpp
+author: Smallejoo
+date: 2026-06-07
+*/
+
 #include "dht11.hpp"
 
 namespace kern::sensors {

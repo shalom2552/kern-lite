@@ -1,3 +1,11 @@
+/*
+Photodiode light sensor driver.
+
+file: firmware/sensors/photodiode.hpp
+author: Smallejoo
+date: 2026-06-07
+*/
+
 #pragma once
 
 #include "stm32l4xx_hal.h"
