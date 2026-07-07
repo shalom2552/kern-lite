@@ -8,13 +8,13 @@ VPYTHON = $(VENV)/bin/python
 PYTEST = $(VENV)/bin/pytest
 
 COMMON = ../firmware/protocol/codec.cpp ../firmware/protocol/crc32.cpp
-TRG = test_codec test_cross_vectors
+TRG = test_codec test_cross_vectors test_dsp
 
 all: $(TRG)
 
 $(VENV):
 	python3 -m venv $(VENV)
-	$(VPYTHON) -m pip install -r requirements.txt
+	$(VPYTHON) -m pip install -r ../requirements.txt
 
 $(TRG): %: host/%.cpp $(COMMON)
 	$(CC) $(CFLAGS) -o $@ $^
@@ -29,3 +29,4 @@ clean:
 	rm -f $(TRG) *.o host/*.o ../firmware/protocol/*.o
 
 .PHONY: all run clean
+
