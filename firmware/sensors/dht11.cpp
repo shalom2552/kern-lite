@@ -107,7 +107,7 @@ void Dht11::pinOutput()
 	GPIO_InitTypeDef GPIO_InitStruct{};
 
 	GPIO_InitStruct.Pin = dhtPinMask();
-	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
 
