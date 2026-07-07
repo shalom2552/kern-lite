@@ -53,6 +53,7 @@ private:
     dsp::Channel<config::kDspWindow> m_chDhtHum{config::kDhtHumThreshold};
 
     uint16_t m_recSeq = 0;
+    uint16_t m_lastStoredSeq = 0;
     uint32_t m_sensorTick = 0;
     float m_lastDhtTemp = 0.0f;
     float m_lastDhtHum = 0.0f;

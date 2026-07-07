@@ -155,7 +155,19 @@ void Orchestrator::runSensorTask()
 void Orchestrator::runStorageTask()
 {
     for (;;) {
-        vTaskDelay(pdMS_TO_TICKS(100));
+        if (!m_box.isMounted()) {
+            m_box.mount();
+        }
+        else {
+            // Write each record the Sensor task posts exactly once. State guards
+            // come in Phase 5; for now, write whenever mounted.
+            kern::storage::SensorRecord rec = m_bus.latest();
+            if (rec.seq != m_lastStoredSeq) {
+                m_box.writeRecord(rec);
+                m_lastStoredSeq = rec.seq;
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(kern::config::kSensorPeriodMs / 2));
     }
 }
 
