@@ -31,8 +31,10 @@ private:
 
 	void delayUs(uint32_t us);
 
+	Status readRaw(uint8_t* data);
+
 private:
-	static constexpr uint32_t kMaxReadMs = 5u;
+	static constexpr uint32_t kMaxReadMs = 30u;
 };
 
 } // namespace kern::sensors
