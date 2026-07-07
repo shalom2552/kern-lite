@@ -7,6 +7,7 @@ date: 2026-06-07
 """
 import argparse
 import time
+import serial
 from groundstation.link import SerialLink
 from groundstation.commands import CommandSender
 from groundstation.frame import Frame, FrameType, NackCode
@@ -128,9 +129,12 @@ def main():
         link.connect(args.port, args.baud)
 
         print("Sending CMD_STATUS...")
-        commands.send_status(link)
-
-        frame = wait_for_reply(link, 2.0)
+        frame = None
+        for _ in range(2):
+            commands.send_status(link)
+            frame = wait_for_reply(link, 2.0)
+            if frame is not None:
+                break
 
         if frame is None:
             print("No STATUS response")
@@ -173,6 +177,9 @@ def main():
         print(f"nack_rate: {link.nack_rate}")
         print(f"rolling_avg_latency_ms: {link.rolling_avg_latency_ms}")
 
+    except serial.SerialException as e:
+        print(f"Could not open port {args.port}: {e}")
+        print("Is the board plugged in and is the port correct?")
     finally:
         link.disconnect()
         print("Disconnected")
