@@ -89,7 +89,7 @@ static void test_no_chatter()
     CHECK(det.update(21.0f) == kern::dsp::ThresholdDetector::State::HighAlert);
 
     // exactly hi - hysteresis = 18.0
-    // your detector clears only when value < hi - hysteresis
+    // detector clears only when value < hi - hysteresis
     // so exactly 18.0 should stay HighAlert
     for (int i = 0; i < 5; ++i)
     {
