@@ -30,9 +30,6 @@ def decode_hex_stream(hex_string: str):
     return None
 
 def test_status_vector_decodes():
-    if STATUS_HEX == "":
-        return  
-
     frame = decode_hex_stream(STATUS_HEX)
 
     assert frame is not None
@@ -50,9 +47,6 @@ def test_status_vector_decodes():
 
 
 def test_nack_bad_command_decodes():
-    if NACK_BAD_COMMAND_HEX == "":
-        return  
-
     frame = decode_hex_stream(NACK_BAD_COMMAND_HEX)
 
     assert frame is not None
