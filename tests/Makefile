@@ -14,7 +14,7 @@ all: $(TRG)
 
 $(VENV):
 	python3 -m venv $(VENV)
-	$(VPYTHON) -m pip install -r requirements.txt
+	$(VPYTHON) -m pip install -r ../requirements.txt
 
 $(TRG): %: host/%.cpp $(COMMON)
 	$(CC) $(CFLAGS) -o $@ $^
