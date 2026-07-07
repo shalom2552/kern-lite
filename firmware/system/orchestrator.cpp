@@ -220,12 +220,10 @@ void Orchestrator::runCommsTask()
 void Orchestrator::runSystemTask()
 {
 
-    static const char msg[] = "KERN-LITE ALIVE\r\n";
     for (;;) {
         hal::gpio::toggle(board::LED1_BLUE);
-        HAL_UART_Transmit(&huart2, reinterpret_cast<const uint8_t*>(msg), sizeof(msg)-1, 100);
         hal::watchdog::kick(hiwdg);
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(kern::config::kSystemPeriodMs));
     }
 }
 

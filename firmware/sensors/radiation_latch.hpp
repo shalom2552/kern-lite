@@ -24,4 +24,6 @@ private:
 	volatile uint32_t m_count = 0;
 };
 
+extern RadiationLatch* g_radiationLatch;
+
 } // namespace kern::sensors

@@ -1,11 +1,15 @@
 #include "radiation_latch.hpp"
+#include "main.h"
 
 namespace kern::sensors {
+
+RadiationLatch* g_radiationLatch = nullptr;
 
 void RadiationLatch::init()
 {
 
 	m_sem = xSemaphoreCreateBinaryStatic(&m_semStorage);
+	g_radiationLatch = this;
 
 	taskENTER_CRITICAL();
 	m_count = 0;
@@ -46,3 +50,10 @@ bool RadiationLatch::consumeEvent()
 }
 
 } // namespace kern::sensors
+
+extern "C" void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	if (GPIO_Pin == SW2_Pin && kern::sensors::g_radiationLatch != nullptr) {
+		kern::sensors::g_radiationLatch->isr();
+	}
+}
