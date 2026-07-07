@@ -8,6 +8,9 @@ date: 2026-06-07
 
 #include "dht11.hpp"
 
+#include "FreeRTOS.h"
+#include "task.h"
+
 namespace kern::sensors {
 
 namespace {
@@ -35,25 +38,46 @@ Dht11::Status Dht11::read(float& tempC, float& humidity)
 	tempC = 0.0f;
 	humidity = 0.0f;
 
-	uint32_t startMs = HAL_GetTick();
-
 	uint8_t data[5]{};
 
-	// start signal, but keep it short because task says max 5ms block
-	// if there is a problem then we should wait longer . need to test this .
+	// The 40-bit transfer is timing-critical; keep task switches out of it.
+	// Interrupts stay enabled, so UART RX is not disturbed.
+	vTaskSuspendAll();
+	Status st = readRaw(data);
+	xTaskResumeAll();
+
+	if (st != Status::Ok) {
+		return st;
+	}
+
+	uint8_t checksum = static_cast<uint8_t>(
+		data[0] + data[1] + data[2] + data[3]
+	);
+
+	if (checksum != data[4]) {
+		return Status::CrcError;
+	}
+
+	//DHT11 integer format
+	humidity = static_cast<float>(data[0]);
+	tempC = static_cast<float>(data[2]);
+
+	return Status::Ok;
+}
+
+Dht11::Status Dht11::readRaw(uint8_t* data)
+{
+	uint32_t startMs = HAL_GetTick();
+
+	// 18 ms low start signal, then release and switch to input.
 	pinOutput();
 	writePin(GPIO_PIN_RESET);
-	delayUs(1000); // 1ms low, not 18ms, because handbook says max 5ms
-					// if we fail to read then maybe we need to wait more time .
+	delayUs(18000);
 
 	writePin(GPIO_PIN_SET);
 	delayUs(30);
 
 	pinInput();
-
-	if (timedOut(startMs)) {
-		return Status::Timeout;
-	}
 
 	//DHT response: LOW -> HIGH -> LOW
 	if (!waitForLevel(GPIO_PIN_RESET, startMs)) {
@@ -88,24 +112,7 @@ Dht11::Status Dht11::read(float& tempC, float& humidity)
 		if (isOne) {
 			data[bit / 8] |= 1u;
 		}
-
-		if (timedOut(startMs)) {
-			return Status::Timeout;
-		}
 	}
-
-	//DHT11 checksum
-	uint8_t crc = static_cast<uint8_t>(
-		data[0] + data[1] + data[2] + data[3]
-	);
-
-	if (crc != data[4]) {
-		return Status::CrcError;
-	}
-
-	//DHT11 integer format
-	humidity = static_cast<float>(data[0]);
-	tempC = static_cast<float>(data[2]);
 
 	return Status::Ok;
 }
