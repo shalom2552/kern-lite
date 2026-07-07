@@ -138,37 +138,39 @@ void Orchestrator::runSensorTask()
 			//no action today. Event system removed for Day 3.
 		}
 
-		// temporary alert bit mapping until project gives official constants
-		// check if any thresholds were passed . and turn the correct bit .
-		if (lm35Out.alert == ThresholdDetector::State::LowAlert) {
-			alertBits |= (1u << 0);
-		}
+		// alert_bits mapping must match spec 9.4 and groundstation/telemetry.py
+		// lm35: high=0x01, low=0x02
 		if (lm35Out.alert == ThresholdDetector::State::HighAlert) {
-			alertBits |= (1u << 1);
+			alertBits |= 0x01;
+		}
+		else if (lm35Out.alert == ThresholdDetector::State::LowAlert) {
+			alertBits |= 0x02;
 		}
 
-		if (photoOut.alert == ThresholdDetector::State::LowAlert) {
-			alertBits |= (1u << 2);
-		}
+		// light: high=0x04, low=0x08
 		if (photoOut.alert == ThresholdDetector::State::HighAlert) {
-			alertBits |= (1u << 3);
+			alertBits |= 0x04;
+		}
+		else if (photoOut.alert == ThresholdDetector::State::LowAlert) {
+			alertBits |= 0x08;
 		}
 
-		if (potOut.alert == ThresholdDetector::State::LowAlert) {
-			alertBits |= (1u << 4);
-		}
+		// pot: high=0x10, low=0x20
 		if (potOut.alert == ThresholdDetector::State::HighAlert) {
-			alertBits |= (1u << 5);
+			alertBits |= 0x10;
+		}
+		else if (potOut.alert == ThresholdDetector::State::LowAlert) {
+			alertBits |= 0x20;
 		}
 
-		if (dhtTempOut.alert == ThresholdDetector::State::LowAlert ||
-			dhtHumOut.alert == ThresholdDetector::State::LowAlert) {
-			alertBits |= (1u << 6);
+		// dht_temp: only high alert exists = 0x40
+		if (dhtTempOut.alert == ThresholdDetector::State::HighAlert) {
+			alertBits |= 0x40;
 		}
 
-		if (dhtTempOut.alert == ThresholdDetector::State::HighAlert ||
-			dhtHumOut.alert == ThresholdDetector::State::HighAlert) {
-			alertBits |= (1u << 7);
+		// dht_hum: only high alert exists = 0x80
+		if (dhtHumOut.alert == ThresholdDetector::State::HighAlert) {
+			alertBits |= 0x80;
 		}
 
 		// update in the record its fields

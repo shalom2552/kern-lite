@@ -1,13 +1,14 @@
 #pragma once
 
 #include "stm32l4xx_hal.h"
+#include "../hal/adc.hpp"
+#include "../system/board.hpp"
 
 namespace kern::sensors {
 
 class Lm35
 {
 public:
-	//get adc port
 	explicit Lm35(ADC_HandleTypeDef* adc)
 	: m_adc(adc)
 	{
@@ -15,53 +16,22 @@ public:
 
 	void init()
 	{
+		// ADC init is done by CubeMX/HAL
 	}
 
 	float readCelsius()
 	{
-		uint32_t raw = readRaw();
-		float volts = toVolts(raw);
-		return volts * 100.0f;
-	}
-
-private:
-	uint32_t readRaw()
-	{
 		if (m_adc == nullptr) {
-			return 0;
+			return 0.0f;
 		}
 
-		ADC_ChannelConfTypeDef sConfig{};
+		// use shared ADC wrapper, not call HAL directly
+		uint32_t raw = kern::hal::adc::read(*m_adc, kern::board::AdcChannel::Lm35);
 
-		//config to read from sensor
-		sConfig.Channel = ADC_CHANNEL_9;
-		sConfig.Rank = ADC_REGULAR_RANK_1;
-		sConfig.SamplingTime = ADC_SAMPLETIME_47CYCLES_5;
-		sConfig.SingleDiff = ADC_SINGLE_ENDED;
-		sConfig.OffsetNumber = ADC_OFFSET_NONE;
-		sConfig.Offset = 0;
+		float volts = kern::hal::adc::toVolts(raw);
 
-		if (HAL_ADC_ConfigChannel(m_adc, &sConfig) != HAL_OK) {
-			return 0;
-		}
-
-		HAL_ADC_Start(m_adc);
-
-		if (HAL_ADC_PollForConversion(m_adc, 10) != HAL_OK) {
-			HAL_ADC_Stop(m_adc);
-			return 0;
-		}
-		//read from adc
-		uint32_t raw = HAL_ADC_GetValue(m_adc);
-
-		HAL_ADC_Stop(m_adc);
-
-		return raw;
-	}
-
-	float toVolts(uint32_t raw)
-	{
-		return (static_cast<float>(raw) * 3.3f) / 4095.0f;
+		// LM35 conversion from spec: volts * 100 = degC
+		return volts * 100.0f;
 	}
 
 private:
