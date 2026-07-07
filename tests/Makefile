@@ -29,3 +29,4 @@ clean:
 	rm -f $(TRG) *.o host/*.o ../firmware/protocol/*.o
 
 .PHONY: all run clean
+
