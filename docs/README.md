@@ -8,7 +8,7 @@ MCU - STM32L476RG.
 
 - [x] Phase 0 — Project setup, RTOS smoke test
 - [x] Phase 1 — CRC-32 + frame codec
-- [ ] Phase 2 — UART round-trip (STATUS/ACK)
+- [x] Phase 2 — UART round-trip (STATUS/ACK)
 - [ ] Phase 3 — Sensors, DSP, live SensorRecord stream
 - [ ] Phase 4 — Circular file storage, replay, recovery
 - [ ] Phase 5 — State machine, full command set
@@ -38,6 +38,10 @@ Run a Python file:
 ```bash
 .venv/bin/python <path/to/file.py>
 ```
+Check Python syntax:
+```bash
+.venv/bin/python3 -m py_compile <path-to-file> && echo OK || echo FAIL
+```
 </details>
 
 <details>
@@ -56,6 +60,10 @@ Run tests:
 Run a Python file:
 ```bash
 .venv\Scripts\python <path\to\file.py>
+```
+Check Python syntax:
+```bash
+.venv\Scripts\python -m py_compile <path-to-file> && echo OK || echo FAIL
 ```
 </details>
 
