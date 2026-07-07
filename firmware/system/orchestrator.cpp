@@ -172,10 +172,19 @@ void Orchestrator::runCommsTask()
 
 void Orchestrator::runSystemTask()
 {
+    // PC9 is the only liveness indicator until state-based LEDs are wired in Day 5,
+    // so blink it at 1 Hz from the 50 ms System task.
+    const uint32_t ledTicks = 1000u / kern::config::kSystemPeriodMs;
+    uint32_t ledCounter = 0;
 
     for (;;) {
-        hal::gpio::toggle(board::LED1_BLUE);
         hal::watchdog::kick(hiwdg);
+
+        if (++ledCounter >= ledTicks) {
+            hal::gpio::toggle(board::LED1_BLUE);
+            ledCounter = 0;
+        }
+
         vTaskDelay(pdMS_TO_TICKS(kern::config::kSystemPeriodMs));
     }
 }
