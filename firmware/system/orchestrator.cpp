@@ -28,6 +28,7 @@ void Orchestrator::init()
     m_link.init();
 }
 
+//read all sensors store them in a struct and returns it
 kern::storage::SensorRecord Orchestrator::assembleRecord()
 {
 	using kern::dsp::ThresholdDetector;
@@ -129,6 +130,8 @@ kern::storage::SensorRecord Orchestrator::assembleRecord()
 	return rec;
 }
 
+// get sensor readings , and publish it on bus.
+// also send it via uart
 void Orchestrator::runSensorTask()
 {
 	m_lm35.init();
@@ -152,15 +155,18 @@ void Orchestrator::runSensorTask()
 	}
 }
 
+// reads new records from the bus
 void Orchestrator::runStorageTask()
 {
     for (;;) {
+    	//load the memory
         if (!m_box.isMounted()) {
             m_box.mount();
         }
         else {
             // Write each record the Sensor task posts exactly once. State guards
             // come in Phase 5; for now, write whenever mounted.
+        	//reads from the shared bus verb if its new record saves it in memory
             kern::storage::SensorRecord rec = m_bus.latest();
             if (rec.seq != m_lastStoredSeq) {
                 m_box.writeRecord(rec);
@@ -171,6 +177,7 @@ void Orchestrator::runStorageTask()
     }
 }
 
+// handles commands from GS
 void Orchestrator::runCommsTask()
 {
     for (;;) {

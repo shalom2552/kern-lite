@@ -1,3 +1,4 @@
+// saves the n samples and calculates there average
 #pragma once
 
 #include <cstddef>

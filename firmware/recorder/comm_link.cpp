@@ -24,6 +24,7 @@ void CommLink::init()
     m_huart = &huart2;
     m_mutex = xSemaphoreCreateMutexStatic(&m_mutexStorage);
     g_comm_link = this;
+    // wait for input from uart and save it in m_rx_byte
     HAL_UART_Receive_IT(m_huart, &m_rx_byte, 1);
 }
 

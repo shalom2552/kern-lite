@@ -10,6 +10,8 @@ struct ThresholdConfig {
 	float hysteresis; // must move this far back inside bounds to remove alert
 };
 
+// the over all stats/configuration for each sensor .
+// and where is he depending on the volt.
 class ThresholdDetector {
 public:
 	enum class State : uint8_t {

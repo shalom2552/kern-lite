@@ -22,19 +22,21 @@ namespace kern::recorder {
 class CommLink {
 public:
     void init();
-
+    // receive bytes via uart , save them in decoder until you get a full frame
     void feed(uint8_t byte);
-
+    // check really fast if a frame is ready and take it
     bool poll(protocol::Frame& out);
 
     void send(const protocol::Frame& f);
 
 private:
+    // when u receive uart byte it get triggered , and saves a byte here m_rx_byte
     friend void ::HAL_UART_RxCpltCallback(UART_HandleTypeDef* huart);
 
     UART_HandleTypeDef* m_huart = nullptr;
-
+    // instance of a decoder that can store bytes in it
     protocol::Decoder m_decoder;
+    // later you store the full frame here
     protocol::Frame m_pending{};
     volatile bool m_frame_ready = false;
 

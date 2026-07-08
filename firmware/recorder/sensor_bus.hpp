@@ -17,6 +17,8 @@ namespace kern::recorder {
 class SensorBus {
 public:
     void init() { m_mutex = xSemaphoreCreateMutexStatic(&m_mutexStorage); }
+
+    //puts the latest record on a shared verb that the orch can take it from
     void publish(const storage::SensorRecord& r) {
         if (m_mutex && xSemaphoreTake(m_mutex, pdMS_TO_TICKS(5)) == pdTRUE) {
             m_latest = r;
