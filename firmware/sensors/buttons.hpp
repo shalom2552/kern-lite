@@ -12,14 +12,23 @@ date: 2026-06-07
 
 namespace kern::sensors {
 
+/**
+ * @brief Types of button presses detected.
+ */
 enum class PressType {
-	None,
-	Short,
-	Long
+	None,  ///< No press event detected
+	Short, ///< Short press event (held for >= 30ms and < 1000ms)
+	Long   ///< Long press event (held for >= 1000ms)
 };
 
+/**
+ * @brief Button polling and press detection helper for SW1.
+ */
 class Buttons {
 public:
+	/**
+	 * @brief Initialize/reset the button polling state variables.
+	 */
 	void init()
 	{
 		m_wasPressed = false;
@@ -27,6 +36,10 @@ public:
 		m_longReported = false;
 	}
 
+	/**
+	 * @brief Poll the SW1 button state and check for short/long press transitions.
+	 * @return Detected PressType (None, Short, or Long).
+	 */
 	PressType pollSw1()
 	{
 		bool pressed = isPressed();
@@ -62,6 +75,10 @@ public:
 	}
 
 private:
+	/**
+	 * @brief Check if SW1 button is currently physically pressed down.
+	 * @return true if pressed, false otherwise.
+	 */
 	bool isPressed() const
 	{
 

@@ -14,18 +14,32 @@ date: 2026-06-07
 
 namespace kern::sensors {
 
+/**
+ * @brief Driver class for the photodiode light sensor.
+ */
 class Photodiode {
 public:
+	/**
+	 * @brief Construct a Photodiode instance linked to an ADC controller.
+	 * @param adc Pointer to the ADC handle structure.
+	 */
 	explicit Photodiode(ADC_HandleTypeDef* adc)
 	: m_adc(adc)
 	{
 	}
 
+	/**
+	 * @brief Initialize the Photodiode sensor driver.
+	 */
 	void init()
 	{
 		//ADC init is done by CubeMX/HAL
 	}
 
+	/**
+	 * @brief Read light intensity normalized between 0.0f and 1.0f.
+	 * @return Normalized light intensity (0.0f = dark, 1.0f = full brightness).
+	 */
 	float readNormalized()
 	{
 		if (m_adc == nullptr) {
