@@ -1,0 +1,88 @@
+# CI build checks: full ARM firmware compile+link and Python bytecode check.
+# Local development builds still go through STM32CubeIDE; the flags below
+# mirror the generated Debug configuration (minus ST-only analysis flags).
+# Usage (from repo root): make -f tests/Makefile.ci firmware | pycheck | all
+
+BUILD = build-ci
+
+CC  = arm-none-eabi-gcc
+CXX = arm-none-eabi-g++
+
+MCU = -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb
+
+DEFS = -DDEBUG -DUSE_HAL_DRIVER -DSTM32L476xx
+
+INC = -ICore/Inc -IFATFS/Target -IFATFS/App \
+      -IDrivers/STM32L4xx_HAL_Driver/Inc \
+      -IDrivers/STM32L4xx_HAL_Driver/Inc/Legacy \
+      -IMiddlewares/Third_Party/FreeRTOS/Source/include \
+      -IMiddlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 \
+      -IMiddlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F \
+      -IMiddlewares/Third_Party/FatFs/src \
+      -IDrivers/CMSIS/Device/ST/STM32L4xx/Include \
+      -IDrivers/CMSIS/Include \
+      -Ifirmware -I.
+
+COMMON   = $(MCU) $(DEFS) $(INC) -O0 -g3 -Wall \
+           -ffunction-sections -fdata-sections --specs=nano.specs
+CFLAGS   = $(COMMON) -std=gnu11
+CXXFLAGS = $(COMMON) -std=gnu++17 -fno-exceptions -fno-rtti -fno-use-cxa-atexit
+ASFLAGS  = $(MCU) -x assembler-with-cpp
+
+LDSCRIPT = STM32L476RGTX_FLASH.ld
+LDFLAGS  = $(MCU) -T$(LDSCRIPT) -Wl,--gc-sections -static --specs=nano.specs \
+           -Wl,--start-group -lc -lm -lstdc++ -lsupc++ -Wl,--end-group
+
+# ---------- sources ---------------------------------
+C_SRC = $(wildcard Core/Src/*.c) \
+        $(wildcard Drivers/STM32L4xx_HAL_Driver/Src/*.c) \
+        $(wildcard Middlewares/Third_Party/FreeRTOS/Source/*.c) \
+        $(wildcard Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/*.c) \
+        $(wildcard Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F/*.c) \
+        $(wildcard Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang/*.c) \
+        $(wildcard Middlewares/Third_Party/FatFs/src/*.c) \
+        $(wildcard Middlewares/Third_Party/FatFs/src/option/*.c) \
+        $(wildcard FATFS/App/*.c) \
+        $(wildcard FATFS/Target/*.c)
+
+CXX_SRC = $(wildcard firmware/*/*.cpp)
+AS_SRC  = $(wildcard Core/Startup/*.s)
+
+OBJ = $(C_SRC:%.c=$(BUILD)/%.o) \
+      $(CXX_SRC:%.cpp=$(BUILD)/%.o) \
+      $(AS_SRC:%.s=$(BUILD)/%.o)
+
+# ---------- targets ---------------------------------
+all: firmware pycheck
+
+firmware: $(BUILD)/kern-lite.elf
+
+$(BUILD)/kern-lite.elf: $(OBJ) $(LDSCRIPT)
+	$(CXX) -o $@ $(OBJ) $(LDFLAGS)
+	arm-none-eabi-size $@
+
+$(BUILD)/%.o: %.c
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+$(BUILD)/%.o: %.cpp
+	@mkdir -p $(@D)
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+$(BUILD)/%.o: %.s
+	@mkdir -p $(@D)
+	$(CC) $(ASFLAGS) -c -o $@ $<
+
+# ---------- python compile check --------------------
+pycheck:
+	find . -name '*.py' \
+		-not -path './.venv/*' \
+		-not -path './Debug/*' \
+		-not -path '*/__pycache__/*' \
+		-print0 | xargs -0 python3 -m py_compile
+	@echo "PYTHON COMPILE CHECK PASSED"
+
+clean:
+	rm -rf $(BUILD)
+
+.PHONY: all firmware pycheck clean

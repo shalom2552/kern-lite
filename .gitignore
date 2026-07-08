@@ -30,3 +30,6 @@ TrueSTUDIO/
 Thumbs.db
 *.swp
 *~
+
+# CI build output
+build-ci/
