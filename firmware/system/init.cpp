@@ -2,7 +2,6 @@
 #include "tasks.hpp"
 
 extern "C" void kern_boot() {
-    // The C entry point stays tiny: once the runtime is ready, hand control to
-    // the task bootstrap layer and let FreeRTOS take over.
+    // Boot hands off to the task bootstrap layer.
     kern_create_tasks();
 }
