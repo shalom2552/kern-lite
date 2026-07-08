@@ -10,9 +10,9 @@ inline constexpr size_t kMaxPayload = 256; ///< Maximum allowed payload size in 
 inline constexpr size_t kFrameOverhead = 9; ///< Protocol frame overhead bytes (STX + Type + LenLo + LenHi + CRC32 + ETX)
 inline constexpr size_t kMaxFrameSize = kFrameOverhead + kMaxPayload; ///< Maximum total size of a frame
 
-/* Opcodes 0x05, 0x07, 0x11 are retired and must never be used */
 /**
  * @brief Identifiers for command and record frame types.
+ * Opcodes 0x05, 0x07, 0x11 are retired and must never be used.
  */
 enum class FrameType : uint8_t {
     CmdStart  = 0x01, ///< Command to start logging
