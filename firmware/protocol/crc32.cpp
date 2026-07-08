@@ -37,6 +37,7 @@ constexpr std::array<uint32_t, 256> makeTable()
 {
     std::array<uint32_t, 256> table{};
 
+    // Build the byte lookup table once at compile time.
     for (uint32_t i = 0; i < 256; ++i) {
         table[i] = computeEntry(i);
     }
@@ -49,6 +50,7 @@ constexpr auto crcTable = makeTable();
 
 uint32_t crc32(const uint8_t* data, size_t len)
 {
+    // Standard CRC flow: begin, update, then finalize.
 	uint32_t crc = crc32Begin();
 	crc = crc32Update(crc, data, len);
 	return crc32Finalize(crc);
@@ -62,6 +64,7 @@ uint32_t crc32Begin()
 uint32_t crc32Update(uint32_t crc, const uint8_t* data, size_t len)
 {
     for (size_t i = 0; i < len; ++i) {
+        // Table-driven update keeps the per-byte work small on the MCU.
         crc = crcTable[(crc ^ data[i]) & 0xFFu] ^ (crc >> 8);
     }
 	return crc;

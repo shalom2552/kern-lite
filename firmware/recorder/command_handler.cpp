@@ -16,6 +16,7 @@ namespace kern::recorder {
 
 void CommandHandler::sendAck()
 {
+    // ACK frames are empty; only the type matters to the peer.
     protocol::Frame f{};
     f.type = protocol::FrameType::Ack;
     f.len = 0;
@@ -24,6 +25,7 @@ void CommandHandler::sendAck()
 
 void CommandHandler::sendNack(protocol::NackCode code)
 {
+    // NACK payload carries the protocol-specific rejection reason.
     protocol::Frame f{};
     f.type = protocol::FrameType::Nack;
     f.len = 1;
@@ -33,6 +35,7 @@ void CommandHandler::sendNack(protocol::NackCode code)
 
 void CommandHandler::sendStatus()
 {
+    // Keep the status payload layout aligned with groundstation/state.py.
     protocol::Frame f{};
     f.type = protocol::FrameType::Status;
     f.len = 14;
@@ -48,6 +51,7 @@ void CommandHandler::sendStatus()
 
 void CommandHandler::dispatch(const protocol::Frame& f)
 {
+    // Phase 5 only accepts STATUS for now; everything else is rejected.
     if (f.type == protocol::FrameType::CmdStatus) {
         sendStatus();
     } else {

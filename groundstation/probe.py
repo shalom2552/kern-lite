@@ -19,6 +19,8 @@ def print_status(payload: bytes):
         print(f"Bad STATUS size: {len(payload)}")
         return
 
+    # Decode the fixed STATUS payload field-by-field so the output stays easy
+    # to compare against the firmware's on-wire layout and the state model.
     state = payload[0]
     sd_mounted = payload[1]
     file_count = payload[2]
@@ -40,6 +42,8 @@ def print_status(payload: bytes):
 
 def wait_for_reply(link: SerialLink, timeout_s: float):
     # Skip the live RECORD stream and return the next command reply frame.
+    # The board can keep streaming telemetry while this probe is waiting for
+    # ACK/NAK/STATUS traffic, so RECORD frames are intentionally ignored here.
     start = time.time()
 
     while time.time() - start < timeout_s:
@@ -76,6 +80,8 @@ def capture_records(link: SerialLink, duration_s: float, max_print: int):
             continue
 
         try:
+            # Turn the binary payload into a typed record before printing any
+            # derived values or running integrity checks.
             rec = RecordDecoder.decode(frame.payload)
         except ValueError as e:
             print(f"bad record: {e}")
@@ -88,6 +94,7 @@ def capture_records(link: SerialLink, duration_s: float, max_print: int):
             crc_failures += 1
 
         if last_seq is not None:
+            # Sequence jumps point to dropped records, wraps, or a device reset.
             expected = (last_seq + 1) & 0xFFFF
             if rec.seq != expected:
                 seq_gaps += 1
@@ -131,6 +138,8 @@ def main():
         print("Sending CMD_STATUS...")
         frame = None
         for _ in range(2):
+            # Retry once so a transient startup hiccup does not make the probe
+            # look broken when the link is actually fine.
             commands.send_status(link)
             frame = wait_for_reply(link, 2.0)
             if frame is not None:
