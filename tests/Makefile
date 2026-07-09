@@ -21,15 +21,20 @@ DSP_SRC   = host/test_dsp.cpp ../firmware/protocol/crc32.cpp
 # --- storage ---
 STORAGE_SRC = host/test_storage.cpp ../firmware/storage/circular_log.cpp \
               host/fatfs_shim/ff.cpp ../firmware/protocol/crc32.cpp
-CFLAGS += -Ihost/fatfs_shim
+CFLAGS += -Ihost/stubs -Ihost/fatfs_shim
+
+# --- day 5 member A: FSM + command guards ---
+FSM_SRC = host/test_fsm.cpp ../firmware/recorder/state_machine.cpp \
+          ../firmware/recorder/command_handler.cpp ../firmware/storage/circular_log.cpp \
+          host/fatfs_shim/ff.cpp ../firmware/protocol/crc32.cpp
 
 # --- example: new suite ---
 # EXAMPLE_SRC = host/test_example.cpp ../firmware/<module>/<module>.cpp ../firmware/protocol/crc32.cpp
 
 # ---------- targets ---------------------------------
-SRC = $(CODEC_SRC) $(CROSS_SRC) $(DSP_SRC) $(STORAGE_SRC)
+SRC = $(CODEC_SRC) $(CROSS_SRC) $(DSP_SRC) $(STORAGE_SRC) $(FSM_SRC)
 OBJ = $(sort $(SRC:.cpp=.o))
-TRG = test_codec test_cross_vectors test_dsp test_storage
+TRG = test_codec test_cross_vectors test_dsp test_storage test_fsm
 
 # ---------- build -----------------------------------
 all: $(TRG)
@@ -51,6 +56,9 @@ test_dsp: $(DSP_SRC:.cpp=.o)
 	$(CC) $(CFLAGS) -o $@ $^
 
 test_storage: $(STORAGE_SRC:.cpp=.o)
+	$(CC) $(CFLAGS) -o $@ $^
+
+test_fsm: $(FSM_SRC:.cpp=.o)
 	$(CC) $(CFLAGS) -o $@ $^
 
 # example: new suite (also add EXAMPLE_SRC to SRC and test_example to TRG)
