@@ -1,76 +1,61 @@
-"""Re-validates record-level CRC (transport CRC is already checked by the
-frame decoder) and detects sequence gaps in the 16-bit record seq.
-
-INTEGRITY DISTINCTION (spec 7.2): frame CRC protects the serial transport;
-record CRC protects the stored 32-byte SensorRecord. A replayed record can
-have a valid frame CRC but a corrupted stored payload -- that combination
-means storage corruption, not a transport error.
-"""
 from __future__ import annotations
 
+import logging
 import struct
-from dataclasses import dataclass
-from typing import Callable, Optional
 
-from .crc import crc32
-from .frame import FrameType
-
-_SEQ_MODULO = 65536
+from groundstation.crc import crc32
+from groundstation.frame import Frame, FrameType
+from groundstation.telemetry import RECORD_SIZE
 
 
-@dataclass
-class IntegrityEvent:
-    category: str
-    message: str
-    details: dict
+logger = logging.getLogger(__name__)
 
 
 class IntegrityChecker:
-    def __init__(self, log_fn: Optional[Callable[[IntegrityEvent], None]] = None):
-        # log_fn lets Day 6's AlertLog subscribe without integrity.py
-        # depending on it. Defaults to an in-memory list.
-        self._log_fn = log_fn
-        self.events: list[IntegrityEvent] = []
+    """Validate record-level integrity on top of the already-decoded frame.
 
-    def _log(self, category: str, message: str, **details) -> None:
-        event = IntegrityEvent(category=category, message=message, details=details)
-        self.events.append(event)
-        if self._log_fn is not None:
-            self._log_fn(event)
+    The frame decoder already guarantees framing and frame CRC correctness.
+    This helper adds the next layer up: record payload integrity for RECORD
+    frames and sequence continuity checks for decoded sensor records.
+    """
 
-    def check_frame(self, frame) -> bool:
-        """Only RECORD frames carry a record-level CRC to re-check. Any
-        other frame type has already passed frame-CRC validation in the
-        decoder, so there's nothing further to verify here."""
+    def check_frame(self, frame: Frame) -> bool:
+        """Re-check the CRC stored inside a decoded RECORD payload.
+
+        For non-RECORD frames there is no record-level payload to validate, so
+        the method treats them as already acceptable. For RECORD frames, the
+        payload must be a complete 32-byte SensorRecord buffer and its embedded
+        CRC must match the CRC computed over bytes 0..27.
+        """
         if frame.type != FrameType.Record:
             return True
 
-        payload = frame.payload
-        if len(payload) < 32:
-            self._log("STORAGE_CORRUPTION_WARNING", "RECORD payload too short",
-                       length=len(payload))
+        if len(frame.payload) != RECORD_SIZE:
+            logger.warning("STORAGE_CORRUPTION_WARNING")
             return False
 
-        expected = crc32(payload[0:28])
-        stored = struct.unpack_from("<I", payload, 28)[0]
-        if expected != stored:
-            self._log("STORAGE_CORRUPTION_WARNING",
-                       "record CRC mismatch (frame CRC was valid)",
-                       expected=expected, stored=stored)
+        payload = frame.payload
+        stored_crc = struct.unpack_from("<I", payload, 28)[0]
+        computed_crc = crc32(payload[0:28])
+
+        if computed_crc != stored_crc:
+            logger.warning("STORAGE_CORRUPTION_WARNING")
             return False
+
         return True
 
-    def check_sequence(self, record, last_seq: Optional[int]) -> int:
-        """Returns the gap size (0 if contiguous). last_seq=None (first
-        record of a session) is never a gap."""
-        if last_seq is None:
+    def check_sequence(self, record, last_seq: int) -> int:
+        """Report how many sequence numbers were skipped before this record.
+
+        The sequence counter is 16-bit and wraps at 65536, so the expected next
+        value is computed modulo 65536. If the record does not follow that
+        expected value exactly, the returned gap size is the distance between
+        the expected value and the received value in modulo arithmetic.
+        """
+        expected_seq = (last_seq + 1) % 65536
+        if record.seq == expected_seq:
             return 0
 
-        expected = (last_seq + 1) % _SEQ_MODULO
-        if record.seq == expected:
-            return 0
-
-        gap = (record.seq - expected) % _SEQ_MODULO
-        self._log("SEQ_GAP", f"sequence gap size={gap}",
-                   last_seq=last_seq, seq=record.seq, gap=gap)
-        return gap
+        gap_size = (record.seq - expected_seq) % 65536
+        logger.warning("SEQ_GAP size=%d", gap_size)
+        return gap_size
