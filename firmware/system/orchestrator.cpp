@@ -22,11 +22,18 @@ extern IWDG_HandleTypeDef hiwdg;
 
 namespace kern::system {
 
+namespace {
+constexpr uint8_t MAX_WRITE_FAILS = 3;
+constexpr uint32_t STATUS_HEARTBEAT_MS = 5000;
+}
+
 void Orchestrator::init()
 {
 	// Bring up shared subsystems before the tasks begin publishing or sending.
     m_bus.init();
     m_link.init();
+    m_buttons.init();
+    m_handler.bind(m_sm, m_box);
 }
 
 kern::storage::SensorRecord Orchestrator::assembleRecord()
@@ -45,7 +52,7 @@ kern::storage::SensorRecord Orchestrator::assembleRecord()
 	rec.timestamp = now / 1000u;
 	rec.ms = static_cast<uint16_t>(now % 1000u);
 	rec.seq = ++m_recSeq;
-	rec.state = 0;
+	rec.state = static_cast<uint8_t>(m_sm.state());
 
 	float lm35Temp = m_lm35.readCelsius();
 	auto lm35Out = m_chLm35.process(lm35Temp);
@@ -148,6 +155,11 @@ void Orchestrator::runSensorTask()
 	m_pot.init();
 
 	for (;;) {
+		if (!m_sm.isLogging()) {
+			vTaskDelay(pdMS_TO_TICKS(kern::config::kSensorPeriodMs));
+			continue;
+		}
+
 		kern::storage::SensorRecord rec = assembleRecord();
 		m_bus.publish(rec);
 
@@ -166,21 +178,49 @@ void Orchestrator::runSensorTask()
 void Orchestrator::runStorageTask()
 {
     for (;;) {
-        if (!m_box.isMounted()) {
-			// Keep trying to mount so the system can recover when the card or
-			// filesystem becomes available after boot.
-            m_box.mount();
+        if (m_sm.isFault()) {
+            if (m_box.isMounted() || m_box.mount() == kern::storage::StorageStatus::Ok) {
+                m_faultMountFailCount = 0;
+                m_writeFailCount = 0;
+                m_sm.process(kern::recorder::Event::FaultCleared);
+            } else if (++m_faultMountFailCount >= MAX_WRITE_FAILS) {
+                NVIC_SystemReset();
+            }
+
+            vTaskDelay(pdMS_TO_TICKS(100));
+            continue;
         }
-        else {
-		    // Store each new record exactly once by comparing the sequence number
-		    // against the last committed value.
-            kern::storage::SensorRecord rec = m_bus.latest();
-            if (rec.seq != m_lastStoredSeq) {
-                m_box.writeRecord(rec);
+
+        if (!m_sm.isLogging()) {
+            vTaskDelay(pdMS_TO_TICKS(100));
+            continue;
+        }
+
+        if (!m_box.isMounted()) {
+            if (m_box.mount() != kern::storage::StorageStatus::Ok) {
+                if (++m_writeFailCount >= MAX_WRITE_FAILS) {
+                    m_sm.process(kern::recorder::Event::SdFault);
+                }
+                vTaskDelay(pdMS_TO_TICKS(100));
+                continue;
+            }
+            m_writeFailCount = 0;
+        }
+
+	    // Store each new record exactly once by comparing the sequence number
+	    // against the last committed value.
+        kern::storage::SensorRecord rec = m_bus.latest();
+        if (rec.seq != m_lastStoredSeq) {
+            kern::storage::StorageStatus st = m_box.writeRecord(rec);
+            if (st == kern::storage::StorageStatus::Ok) {
                 m_lastStoredSeq = rec.seq;
+                m_writeFailCount = 0;
+            } else if (++m_writeFailCount >= MAX_WRITE_FAILS) {
+                m_sm.process(kern::recorder::Event::SdFault);
             }
         }
-        vTaskDelay(pdMS_TO_TICKS(kern::config::kSensorPeriodMs / 2));
+
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
 
@@ -189,9 +229,7 @@ void Orchestrator::runCommsTask()
     for (;;) {
         kern::protocol::Frame f{};
         if (m_link.poll(f)) {
-			// Only one command path exists for now, so dispatch directly from the
-			// receive loop rather than buffering a separate command queue.
-            m_handler.dispatch(f); // stub handler
+            m_handler.dispatch(f);
         }
         vTaskDelay(pdMS_TO_TICKS(10));
     }
@@ -199,17 +237,42 @@ void Orchestrator::runCommsTask()
 
 void Orchestrator::runSystemTask()
 {
-	// Use the board LED as a coarse heartbeat so the system task proves the
-	// watchdog is serviced and the scheduler is still running.
-    const uint32_t ledTicks = 1000u / kern::config::kSystemPeriodMs;
-    uint32_t ledCounter = 0;
+    uint32_t lastHeartbeatMs = HAL_GetTick();
+    bool faultBlinkOn = false;
 
     for (;;) {
+        uint32_t now = HAL_GetTick();
         hal::watchdog::kick(hiwdg);
 
-        if (++ledCounter >= ledTicks) {
-            hal::gpio::toggle(board::LED1_BLUE);
-            ledCounter = 0;
+        if (m_sm.isLogging()) {
+            hal::gpio::set(board::RGB_G);
+            hal::gpio::clear(board::RGB_R);
+            hal::gpio::clear(board::RGB_B);
+        } else if (m_sm.isFault()) {
+            faultBlinkOn = !faultBlinkOn;
+            if (faultBlinkOn) {
+                hal::gpio::set(board::RGB_R);
+            } else {
+                hal::gpio::clear(board::RGB_R);
+            }
+            hal::gpio::clear(board::RGB_G);
+            hal::gpio::clear(board::RGB_B);
+        } else {
+            hal::gpio::clear(board::RGB_R);
+            hal::gpio::clear(board::RGB_G);
+            hal::gpio::clear(board::RGB_B);
+        }
+
+        if (m_buttons.pollSw1() == kern::sensors::PressType::Short) {
+            if (m_sm.process(kern::recorder::Event::ShortPress)) {
+                m_box.flushMeta();
+                m_handler.sendStatus();
+            }
+        }
+
+        if (now - lastHeartbeatMs >= STATUS_HEARTBEAT_MS) {
+            m_handler.sendStatus();
+            lastHeartbeatMs = now;
         }
 
         vTaskDelay(pdMS_TO_TICKS(kern::config::kSystemPeriodMs));

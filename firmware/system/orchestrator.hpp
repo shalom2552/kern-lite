@@ -13,6 +13,7 @@
 #include "../sensors/potentiometer.hpp"
 #include "../sensors/dht11.hpp"
 #include "../sensors/radiation_latch.hpp"
+#include "../sensors/buttons.hpp"
 #include "../dsp/channel.hpp"
 #include "../storage/sensor_record.hpp"
 #include "config.hpp"
@@ -73,6 +74,7 @@ private:
     storage::CircularLog m_box;
     recorder::CommLink m_link;
     recorder::CommandHandler m_handler;
+    sensors::Buttons m_buttons;
 
     sensors::Lm35 m_lm35{&hadc1};
     sensors::Photodiode m_photo{&hadc1};
@@ -89,6 +91,8 @@ private:
     uint16_t m_recSeq = 0;
     uint16_t m_lastStoredSeq = 0;
     uint32_t m_sensorTick = 0;
+    uint8_t m_writeFailCount = 0;
+    uint8_t m_faultMountFailCount = 0;
     float m_lastDhtTemp = 0.0f;
     float m_lastDhtHum = 0.0f;
 };

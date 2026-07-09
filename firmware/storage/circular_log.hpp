@@ -90,6 +90,12 @@ public:
     StorageStatus eraseAll(uint32_t magic);
 
     /**
+     * @brief Flush current metadata to persistent storage.
+     * @return StorageStatus indicating success or failure.
+     */
+    StorageStatus flushMeta();
+
+    /**
      * @brief Get the total number of records written.
      * @return Total record count.
      */

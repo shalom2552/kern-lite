@@ -344,6 +344,14 @@ StorageStatus CircularLog::eraseAll(uint32_t magic)
     return mount();
 }
 
+StorageStatus CircularLog::flushMeta()
+{
+    if (!m_mounted) {
+        return StorageStatus::NotMounted;
+    }
+    return writeMeta();
+}
+
 uint32_t CircularLog::totalRecords() const { return m_meta.total_records; }
 uint32_t CircularLog::wrapCount() const { return m_meta.wrap_count; }
 uint8_t CircularLog::currentFile() const { return m_meta.current_file; }
