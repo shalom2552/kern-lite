@@ -5,7 +5,14 @@ file: commands.py
 author: Smallejoo
 date: 2026-06-07
 """
+import logging
+import threading
+
 from groundstation.frame import Frame, FrameType
+from groundstation.state import DeviceStateModel
+from groundstation.storage_panel import StorageModel
+
+logger = logging.getLogger(__name__)
 
 
 class CommandSender:
@@ -38,6 +45,7 @@ class CommandSender:
         link.record_command(FrameType.CmdErase)
         link.send_frame(Frame(FrameType.CmdErase, payload))
 
+
 class StatusPoller(threading.Thread):
     """Periodically polls device status and validates reboot conditions."""
 
@@ -48,24 +56,29 @@ class StatusPoller(threading.Thread):
         self.device_state = device_state
         self.storage_model = storage_model
         self.poll_interval_s = poll_interval_s
-        self._running = True
+        self._stop_event = threading.Event()
 
     def stop(self):
-        self._running = False
+        self._stop_event.set()
 
     def run(self):
-        while self._running:
+        while not self._stop_event.is_set():
             if self.link.connection_state == "connected":
                 self.command_sender.send_status(self.link)
-            time.sleep(self.poll_interval_s)
+            self._stop_event.wait(self.poll_interval_s)
 
     def handle_status_reply(self, frame: Frame):
         """Must be called by the main RX loop when a STATUS reply arrives."""
         last_total_records = self.storage_model.total_records
-        
-        self.device_state.update_from_status(frame)
-        self.storage_model.update_from_status(frame)
+
+        try:
+            self.device_state.update_from_status(frame)
+            self.storage_model.update_from_status(frame)
+        except ValueError:
+            logger.exception("Dropping malformed STATUS payload")
+            return
 
         if self.storage_model.total_records < (last_total_records * 0.5):
-            logging.warning("REBOOT_DETECTED: total_records dropped significantly.")
-            self.command_sender.send_status(self.link)
+            logger.warning("REBOOT_DETECTED: total_records dropped significantly.")
+            if self.link.connection_state == "connected":
+                self.command_sender.send_status(self.link)
