@@ -74,7 +74,7 @@ class StatusPoller(threading.Thread):
         try:
             self.device_state.update_from_status(frame)
             self.storage_model.update_from_status(frame)
-        except ValueError:
+        except (ValueError, IndexError):
             logger.exception("Dropping malformed STATUS payload")
             return
 
