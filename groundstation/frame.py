@@ -65,6 +65,8 @@ def encode(frame: Frame) -> bytes:
     Encoding a frame into bytes for transmission.
     returns the encoded bytes of the frame.
     """
+    # Pack one high-level Frame into the exact wire format the firmware expects:
+    # STX, type, length, payload, CRC32, ETX.
     payload_len = len(frame.payload)
     frame_type = int(frame.type)
     header = struct.pack('<BH', frame_type, payload_len)
@@ -106,10 +108,13 @@ class Decoder:
         raising CrcError or SyncError exceptions.
         Mirror the firmware state machine exactly
         """
+        # Consume one byte at a time so host-side behavior tracks the firmware
+        # parser state-for-state, including resync and checksum handling.
         S = self._State
         match self._state:
             case S.WAIT_STX:
                 if byte == STX:
+                    # Ignore noise until a valid start-of-frame marker appears.
                     self._state = S.TYPE
 
             case S.TYPE:
@@ -126,6 +131,8 @@ class Decoder:
                 self._len |= byte << 8
                 self._crc_calc = crc32_update(self._crc_calc, bytes([byte]))
                 if self._len > MAX_PAYLOAD:
+                    # Oversized payloads are treated as loss of framing, not as
+                    # a partially valid message.
                     self.reset()
                     raise SyncError(f"len {self._len} > {MAX_PAYLOAD}")
                 self._payload = bytearray()
@@ -154,6 +161,8 @@ class Decoder:
                 self._state = S.WAIT_ETX
 
             case S.WAIT_ETX:
+                # Only accept the frame once the transmitted CRC matches the
+                # locally computed CRC and the ETX byte closes the packet.
                 recv = struct.unpack('<I', bytes(self._crc_recv))[0]
                 calc = self._crc_calc & 0xFFFFFFFF
                 ftype_raw, payload, ok_etx = self._type, bytes(self._payload), byte == ETX

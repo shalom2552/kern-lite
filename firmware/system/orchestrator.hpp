@@ -19,19 +19,53 @@
 
 #include <cstdint>
 
+/**
+ * @brief Global ADC handle instance defined in main context.
+ */
 extern ADC_HandleTypeDef hadc1;
 
 namespace kern::system {
 
+/**
+ * @brief Main system orchestrator coordinating tasks, sensor polling, logging, and communications.
+ */
 class Orchestrator {
 public:
+    /**
+     * @brief Initialize all sub-modules (sensors, storage, comm link).
+     */
     void init();
+
+    /**
+     * @brief Periodic task execution function for sensor polling and filtering.
+     */
     void runSensorTask();
+
+    /**
+     * @brief Periodic task execution function for flushing records to storage.
+     */
     void runStorageTask();
+
+    /**
+     * @brief Periodic task execution function for handling protocol communication.
+     */
     void runCommsTask();
+
+    /**
+     * @brief Periodic task execution function for system health monitoring and state transitions.
+     */
     void runSystemTask();
+
+    /**
+     * @brief Get the singleton instance of the Orchestrator.
+     * @return Reference to the Orchestrator instance.
+     */
     static Orchestrator& instance() { static Orchestrator o; return o; }
 private:
+    /**
+     * @brief Collect filtered sensor values and package them into a SensorRecord.
+     * @return Generated SensorRecord.
+     */
     storage::SensorRecord assembleRecord();
 
     recorder::StateMachine m_sm;

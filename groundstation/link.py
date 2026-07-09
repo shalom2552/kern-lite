@@ -40,17 +40,22 @@ class SerialLink:
 
     @property
     def rolling_avg_latency_ms(self):
+        # Keep the average focused on recent replies instead of old startup
+        # behavior, so the number reflects the current link quality.
         if not self._latencies:
             return None
         return sum(self._latencies) / len(self._latencies)
 
     @property
     def nack_rate(self):
+        # No commands means no meaningful rejection rate yet.
         if self.commands_sent == 0:
             return 0.0
         return self.nack_count / self.commands_sent
 
     def connect(self, port: str, baud: int = 115200):
+        # Capture the chosen port/baud once, then start the reconnect watcher
+        # so transient disconnects can recover with the same settings.
         self._port = port
         self._baud = baud
 
@@ -65,6 +70,7 @@ class SerialLink:
         self._reconnect_thread.start()
 
     def disconnect(self):
+        # Stop the background reconnect loop before closing the port.
         self._running = False
         self.connection_state = "disconnected"
 
@@ -77,11 +83,15 @@ class SerialLink:
         self.ser = None
 
     def record_command(self, command_type: int):
+        # Record the command launch time so the next reply can be timed against
+        # it without needing explicit frame IDs.
         self._pending_command_type = command_type
         self._pending_command_time = time.time()
         self.commands_sent += 1
 
     def send_frame(self, frame: Frame):
+        # Encode the frame before writing so every outbound message follows the
+        # same protocol framing as the firmware decoder.
         if self.ser is None or not self.ser.is_open:
             raise RuntimeError("Serial port is not connected")
 
@@ -90,6 +100,8 @@ class SerialLink:
         self.tx_count += 1
 
     def receive_frame(self) -> Optional[Frame]:
+        # Read whatever bytes are currently buffered, then let the stateful
+        # decoder pull complete frames out of the stream.
         if self.ser is None or not self.ser.is_open:
             return None
 
@@ -115,6 +127,8 @@ class SerialLink:
                 self.rx_count += 1
 
                 if self._pending_command_time is not None:
+                    # Associate the first reply after a command with that
+                    # command to produce a command-to-response latency figure.
                     self.last_latency_ms = (time.time() - self._pending_command_time) * 1000
                     self._latencies.append(self.last_latency_ms)
 
@@ -132,11 +146,15 @@ class SerialLink:
         return None
 
     def _auto_reconnect_loop(self):
+        # Run until disconnect() clears the flag, reopening the port whenever
+        # the serial handle disappears or stops reporting as open.
         while self._running:
             if self.ser is None or not self.ser.is_open:
                 self.connection_state = "reconnecting"
 
                 try:
+                    # Recreate the serial object with the last known connection
+                    # settings instead of requiring the caller to rebuild state.
                     self.ser = serial.Serial(
                         self._port,
                         baudrate=self._baud,

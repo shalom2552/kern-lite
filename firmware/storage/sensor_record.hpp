@@ -7,20 +7,23 @@ namespace kern::storage {
 
 #pragma pack(push, 1)
 
+/**
+ * @brief Representation of a single sensor record logged to storage.
+ */
 struct SensorRecord {
-    uint32_t timestamp;
-    uint16_t ms;
-    uint16_t seq;
-    int16_t lm35_c;
-    int16_t dht_temp_c;
-    uint16_t dht_hum;
-    uint16_t light;
-    uint16_t pot;
-    uint8_t alert_bits;
-    uint8_t state;
-    uint8_t fault_bits;
-    uint8_t reserved[7];
-    uint32_t crc32;
+    uint32_t timestamp; ///< Epoch timestamp in seconds.
+    uint16_t ms;        ///< Millisecond component of timestamp.
+    uint16_t seq;       ///< Sequence number incremented for each record.
+    int16_t lm35_c;     ///< Temperature reading from LM35 (*100 scaled value).
+    int16_t dht_temp_c; ///< Temperature reading from DHT11 (*10 scaled value).
+    uint16_t dht_hum;   ///< Humidity reading from DHT11 (*10 scaled value).
+    uint16_t light;     ///< Normalized light sensor reading (*1000 scaled value).
+    uint16_t pot;       ///< Normalized potentiometer reading (*1000 scaled value).
+    uint8_t alert_bits; ///< Bitmask representing active DSP alerts.
+    uint8_t state;      ///< Current recorder state representation.
+    uint8_t fault_bits; ///< Bitmask representing sensor faults.
+    uint8_t reserved[7];///< Reserved padding bytes.
+    uint32_t crc32;     ///< CRC32 checksum over the first 28 bytes of the record.
 };
 
 #pragma pack(pop)
@@ -28,10 +31,10 @@ struct SensorRecord {
 static_assert(sizeof(SensorRecord) == 32);
 static_assert(offsetof(SensorRecord, crc32) == 28);
 
-inline constexpr uint8_t kFaultLm35Range = 0x01;
-inline constexpr uint8_t kFaultDhtTimeout = 0x02;
-inline constexpr uint8_t kFaultDhtBadData = 0x04;
-inline constexpr uint8_t kFaultLightStuck = 0x08;
-inline constexpr uint8_t kFaultPotStuck = 0x10;
+inline constexpr uint8_t kFaultLm35Range = 0x01;  ///< Fault flag: LM35 temperature out of range
+inline constexpr uint8_t kFaultDhtTimeout = 0x02; ///< Fault flag: DHT11 communication timeout
+inline constexpr uint8_t kFaultDhtBadData = 0x04; ///< Fault flag: DHT11 checksum failure
+inline constexpr uint8_t kFaultLightStuck = 0x08; ///< Fault flag: Photodiode reading stuck
+inline constexpr uint8_t kFaultPotStuck = 0x10;   ///< Fault flag: Potentiometer reading stuck
 
 }

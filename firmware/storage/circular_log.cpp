@@ -23,6 +23,8 @@ static constexpr const char* kMetaPath = "0:META.BIN";
 // 8.3 file names on volume 0. Index maps to LOG0N.BIN.
 static const char* logPath(uint8_t file)
 {
+    // The FatFs volume uses a fixed ring of numbered files, so map the slot
+    // index directly to the corresponding 8.3 file name.
     static const char names[LOG_FILE_COUNT][12] = {
         "0:LOG00.BIN", "0:LOG01.BIN", "0:LOG02.BIN", "0:LOG03.BIN"
     };
@@ -33,6 +35,8 @@ static const char* logPath(uint8_t file)
 // Returns true when a is strictly newer than b.
 static bool newer(const SensorRecord& a, const SensorRecord& b)
 {
+    // Compare timestamps first, then ms, then sequence to reconstruct order
+    // even when several records share the same coarse timestamp.
     if (a.timestamp != b.timestamp) return a.timestamp > b.timestamp;
     if (a.ms != b.ms) return a.ms > b.ms;
     return a.seq > b.seq;
@@ -52,6 +56,8 @@ uint32_t CircularLog::metaCrc(const LogMeta& m)
 
 StorageStatus CircularLog::readMeta()
 {
+    // Metadata is optional only on a clean system; if it exists, verify it
+    // before trusting the saved write head and wrap counters.
     FIL f{};
     if (f_open(&f, kMetaPath, FA_READ) != FR_OK) {
         return StorageStatus::Corrupt;
@@ -75,6 +81,8 @@ StorageStatus CircularLog::readMeta()
 
 StorageStatus CircularLog::writeMeta()
 {
+    // Persist the ring state after every successful write so recovery can
+    // resume from the last known head instead of scanning from scratch.
     m_meta.magic = META_MAGIC;
     m_meta.version = META_VERSION;
     m_meta.file_count = LOG_FILE_COUNT;
@@ -101,6 +109,8 @@ StorageStatus CircularLog::writeMeta()
 // zeroed record (CRC fails) instead of expanding the file. False on I/O error.
 static bool readSlot(FIL* files, uint32_t globalPos, SensorRecord& out)
 {
+    // A slot beyond the file size is treated as unwritten, which keeps the
+    // scan logic simple and avoids expanding sparse files during recovery.
     uint8_t file = static_cast<uint8_t>(globalPos / RECORDS_PER_FILE);
     uint16_t idx = static_cast<uint16_t>(globalPos % RECORDS_PER_FILE);
     FIL* fp = &files[file];
@@ -178,6 +188,8 @@ static void advanceHead(LogMeta& meta)
 
 StorageStatus CircularLog::mount()
 {
+    // Mount the filesystem, open all ring files, then restore the write head
+    // from metadata or by scanning the records if metadata is unavailable.
     if (f_mount(&m_fatfs, "0:", 1) != FR_OK) {
         return StorageStatus::IoError;
     }
@@ -251,6 +263,7 @@ StorageStatus CircularLog::writeRecord(const SensorRecord& r)
         return StorageStatus::NotMounted;
     }
 
+    // Copy the record, stamp its CRC, and write it into the current ring slot.
     SensorRecord stored = r;
     stored.crc32 = recordCrc(stored);
 
