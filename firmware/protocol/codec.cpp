@@ -9,6 +9,7 @@ size_t encode(const Frame& f, uint8_t* outBuf, size_t outSize) {
     const size_t total = kFrameOverhead + f.len;
     if (outBuf == nullptr || outSize < total) return 0;
 
+    // Wire layout is STX | TYPE | LEN_L | LEN_H | PAYLOAD | CRC32 | ETX.
     size_t i = 0;
     outBuf[i++] = kStx;
     outBuf[i++] = static_cast<uint8_t>(f.type);
@@ -19,6 +20,7 @@ size_t encode(const Frame& f, uint8_t* outBuf, size_t outSize) {
     uint32_t crc = crc32Begin();
     crc = crc32Update(crc, &outBuf[1], 3); // TYPE, LEN_LO, LEN_HI
     if (f.len > 0) {
+        // Copy the payload after the fixed header, then fold it into the CRC.
         std::memcpy(&outBuf[i], f.payload, f.len);
         crc = crc32Update(crc, f.payload, f.len);
         i += f.len;
@@ -63,6 +65,7 @@ DecodeResult Decoder::feed(uint8_t byte) {
     switch (m_state) {
     case State::WaitStx:
         if (byte == kStx) {
+            // Start a fresh frame only after a valid sync byte.
             m_frame = Frame{};
             m_payloadIdx = 0;
             m_crc = crc32Begin();
@@ -96,6 +99,7 @@ DecodeResult Decoder::feed(uint8_t byte) {
     }
 
     case State::Payload:
+        // Payload bytes are accumulated sequentially until the declared length.
         m_frame.payload[m_payloadIdx++] = byte;
         m_crc = crc32Update(m_crc, &byte, 1);
         if (m_payloadIdx >= m_frame.len) {
@@ -124,6 +128,7 @@ DecodeResult Decoder::feed(uint8_t byte) {
         return DecodeResult::NeedMore;
 
     case State::WaitEtx: {
+        // Final validation happens only after CRC bytes are consumed.
         const uint32_t computed = crc32Finalize(m_crc);
         const uint32_t received = m_rxCrc;
         const bool etxOk = (byte == kEtx);

@@ -14,18 +14,32 @@ date: 2026-06-07
 
 namespace kern::sensors {
 
+/**
+ * @brief Driver class for the rotary potentiometer analog input.
+ */
 class Potentiometer {
 public:
+	/**
+	 * @brief Construct a Potentiometer instance linked to an ADC controller.
+	 * @param adc Pointer to the ADC handle structure.
+	 */
 	explicit Potentiometer(ADC_HandleTypeDef* adc)
 	: m_adc(adc)
 	{
 	}
 
+	/**
+	 * @brief Initialize the Potentiometer sensor driver.
+	 */
 	void init()
 	{
 		//ADC init is done by CubeMX/HAL
 	}
 
+	/**
+	 * @brief Read potentiometer value normalized between 0.0f and 1.0f.
+	 * @return Normalized potentiometer position.
+	 */
 	float readNormalized()
 	{
 		if (m_adc == nullptr) {
