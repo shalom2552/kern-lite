@@ -13,19 +13,33 @@ date: 2026-06-07
 
 namespace kern::sensors {
 
+/**
+ * @brief Driver class for the LM35 analog temperature sensor.
+ */
 class Lm35
 {
 public:
+	/**
+	 * @brief Construct an Lm35 sensor instance linked to an ADC controller.
+	 * @param adc Pointer to the ADC handle structure.
+	 */
 	explicit Lm35(ADC_HandleTypeDef* adc)
 	: m_adc(adc)
 	{
 	}
 
+	/**
+	 * @brief Initialize the LM35 sensor driver.
+	 */
 	void init()
 	{
 		// ADC init is done by CubeMX/HAL
 	}
 
+	/**
+	 * @brief Read temperature in degrees Celsius.
+	 * @return Measured temperature in degrees Celsius, or 0.0f on error.
+	 */
 	float readCelsius()
 	{
 		if (m_adc == nullptr) {

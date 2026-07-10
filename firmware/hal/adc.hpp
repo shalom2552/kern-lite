@@ -13,6 +13,17 @@ date: 2026-06-07
 
 namespace kern::hal::adc {
 
+/**
+ * @brief Configure and read a raw value from the specified ADC channel.
+ * 
+ * Configures the ADC channel parameters regular rank 1, single ended, 47.5 cycles,
+ * starts the ADC, polls for conversion (10ms timeout), retrieves the value,
+ * and stops the ADC.
+ * 
+ * @param adc Handle to the STM32 ADC interface.
+ * @param channel The board ADC channel to read.
+ * @return The raw 12-bit conversion value, or 0 if config/start/poll fails.
+ */
 inline uint32_t read(ADC_HandleTypeDef& adc, kern::board::AdcChannel channel)
 {
 	ADC_ChannelConfTypeDef sConfig{};
@@ -45,6 +56,11 @@ inline uint32_t read(ADC_HandleTypeDef& adc, kern::board::AdcChannel channel)
 	return raw;
 }
 
+/**
+ * @brief Convert a raw 12-bit ADC value to voltage.
+ * @param raw The raw ADC reading.
+ * @return Calculated voltage as a float.
+ */
 inline float toVolts(uint32_t raw)
 {
 	//assumes 12-bit ADC and 3.3V reference

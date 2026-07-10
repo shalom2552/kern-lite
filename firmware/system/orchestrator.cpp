@@ -24,6 +24,7 @@ namespace kern::system {
 
 void Orchestrator::init()
 {
+	// Bring up shared subsystems before the tasks begin publishing or sending.
     m_bus.init();
     m_link.init();
 }
@@ -34,6 +35,9 @@ kern::storage::SensorRecord Orchestrator::assembleRecord()
 	using kern::dsp::ThresholdDetector;
 	using kern::storage::SensorRecord;
 
+	// Assemble one telemetry record from the current sensor snapshot, then
+	// translate raw sensor values into the packed record layout used on disk
+	// and on the wire.
 	SensorRecord rec{};
 	uint8_t alertBits = 0;
 	uint8_t faultBits = 0;
@@ -47,6 +51,8 @@ kern::storage::SensorRecord Orchestrator::assembleRecord()
 	float lm35Temp = m_lm35.readCelsius();
 	auto lm35Out = m_chLm35.process(lm35Temp);
 	rec.lm35_c = static_cast<int16_t>(lm35Out.filtered * 10.0f);
+	// Range checks map directly to the fault bit layout used by telemetry.py so
+	// the host and firmware agree on the meaning of each fault bit.
 	if (lm35Temp < -10.0f || lm35Temp > 100.0f) {
 		faultBits |= kern::storage::kFaultLm35Range;
 	}
@@ -65,7 +71,8 @@ kern::storage::SensorRecord Orchestrator::assembleRecord()
 		faultBits |= kern::storage::kFaultPotStuck;
 	}
 
-	// DHT11 supports ~2 s updates; sample every 20 ticks and reuse the last good value.
+	// DHT11 updates slowly, so sample it on a lower cadence and reuse the last
+	// good reading between polls instead of stalling the whole record loop.
 	if ((m_sensorTick % 20u) == 0u) {
 		float dhtTemp = 0.0f;
 		float dhtHum = 0.0f;
@@ -89,7 +96,8 @@ kern::storage::SensorRecord Orchestrator::assembleRecord()
 	rec.dht_temp_c = static_cast<int16_t>(dhtTempOut.filtered * 10.0f);
 	rec.dht_hum = static_cast<uint16_t>(dhtHumOut.filtered * 10.0f);
 
-	// alert_bits per spec 9.4; must match groundstation/telemetry.py.
+	// Alert bits are packed exactly like the host decoder expects, channel by
+	// channel, so downstream tooling can reuse the same bitmask semantics.
 	if (lm35Out.alert == ThresholdDetector::State::HighAlert) {
 		alertBits |= 0x01;
 	}
@@ -134,6 +142,8 @@ kern::storage::SensorRecord Orchestrator::assembleRecord()
 // also send it via uart
 void Orchestrator::runSensorTask()
 {
+	// Initialize the hardware drivers once, then keep publishing records on a
+	// steady cadence so the storage and comms tasks can consume them.
 	m_lm35.init();
 	m_dht11.init();
 	m_latch.init();
@@ -144,7 +154,8 @@ void Orchestrator::runSensorTask()
 		kern::storage::SensorRecord rec = assembleRecord();
 		m_bus.publish(rec);
 
-		// Temporary live stream until the Comms task owns RECORD framing in Phase 5.
+		// The live stream keeps telemetry visible while the comms pipeline is
+		// still in transition to a dedicated RECORD framing path.
 		kern::protocol::Frame out{};
 		out.type = kern::protocol::FrameType::Record;
 		out.len = sizeof(kern::storage::SensorRecord);
@@ -161,12 +172,18 @@ void Orchestrator::runStorageTask()
     for (;;) {
     	//load the memory
         if (!m_box.isMounted()) {
+			// Keep trying to mount so the system can recover when the card or
+			// filesystem becomes available after boot.
             m_box.mount();
         }
         else {
-            // Write each record the Sensor task posts exactly once. State guards
-            // come in Phase 5; for now, write whenever mounted.
-        	//reads from the shared bus verb if its new record saves it in memory
+
+    
+/*
+ * Store each new record exactly once by comparing the sequence number
+ * against the last committed value.
+ */
+
             kern::storage::SensorRecord rec = m_bus.latest();
             if (rec.seq != m_lastStoredSeq) {
                 m_box.writeRecord(rec);
@@ -183,6 +200,8 @@ void Orchestrator::runCommsTask()
     for (;;) {
         kern::protocol::Frame f{};
         if (m_link.poll(f)) {
+			// Only one command path exists for now, so dispatch directly from the
+			// receive loop rather than buffering a separate command queue.
             m_handler.dispatch(f); // stub handler
         }
         vTaskDelay(pdMS_TO_TICKS(10));
@@ -191,8 +210,8 @@ void Orchestrator::runCommsTask()
 
 void Orchestrator::runSystemTask()
 {
-    // PC9 is the only liveness indicator until state-based LEDs are wired in Day 5,
-    // so blink it at 1 Hz from the 50 ms System task.
+	// Use the board LED as a coarse heartbeat so the system task proves the
+	// watchdog is serviced and the scheduler is still running.
     const uint32_t ledTicks = 1000u / kern::config::kSystemPeriodMs;
     uint32_t ledCounter = 0;
 

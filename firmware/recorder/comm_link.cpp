@@ -21,6 +21,7 @@ CommLink* g_comm_link = nullptr;
 
 void CommLink::init()
 {
+    // Bind the transport to the shared UART and arm the first receive byte.
     m_huart = &huart2;
     m_mutex = xSemaphoreCreateMutexStatic(&m_mutexStorage);
     g_comm_link = this;
@@ -30,6 +31,7 @@ void CommLink::init()
 
 void CommLink::feed(uint8_t byte)
 {
+    // Feed one byte at a time through the decoder state machine.
     protocol::DecodeResult result = m_decoder.feed(byte);
     if (result == protocol::DecodeResult::FrameReady) {
         m_pending = m_decoder.frame();
@@ -41,6 +43,7 @@ void CommLink::feed(uint8_t byte)
 bool CommLink::poll(protocol::Frame& out)
 {
     if (m_frame_ready) {
+        // Copy the completed frame atomically, then clear the ready flag.
         __disable_irq(); // disable interrupts
         out = m_pending;
         m_frame_ready = false;
@@ -55,6 +58,7 @@ void CommLink::send(const protocol::Frame& f)
     if (m_mutex == nullptr) {
         return; // init() not called yet
     }
+    // Serialize access so the UART transmitter stays single-threaded.
     uint8_t buffer[protocol::kMaxFrameSize];
     xSemaphoreTake(m_mutex, portMAX_DELAY);
     size_t n = protocol::encode(f, buffer, sizeof(buffer));
@@ -68,6 +72,7 @@ void CommLink::send(const protocol::Frame& f)
 
 extern "C" void HAL_UART_RxCpltCallback(UART_HandleTypeDef* huart)
 {
+    // Reuse the live byte stream only for the active transport instance.
     if (huart == &huart2 && kern::recorder::g_comm_link != nullptr) {
         kern::recorder::g_comm_link->feed(kern::recorder::g_comm_link->m_rx_byte);
     }

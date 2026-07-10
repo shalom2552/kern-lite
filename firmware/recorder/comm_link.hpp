@@ -15,18 +15,45 @@
 
 #include <cstdint>
 
+/**
+ * @brief HAL UART RX complete callback declared for C linkage.
+ * @param huart UART handle pointer.
+ */
 extern "C" void HAL_UART_RxCpltCallback(UART_HandleTypeDef* huart);
 
 namespace kern::recorder {
 
+/**
+ * @brief Manages the UART-based serial communication link for protocol frame transmission and reception.
+ */
 class CommLink {
 public:
+    /**
+     * @brief Initialize the UART hardware and start asynchronous RX interrupt sequence.
+     */
     void init();
-    // receive bytes via uart , save them in decoder until you get a full frame
+  
+    /* receive bytes via uart , save them in decoder until you get a full frame */
     void feed(uint8_t byte);
-    // check really fast if a frame is ready and take it
+    /* check really fast if a frame is ready and take it */
+
+    /**
+     * @brief Feed a received byte into the internal frame decoder.
+     * @param byte The received data byte.
+     */
+    void feed(uint8_t byte);
+
+    /**
+     * @brief Poll the communication link to see if a valid protocol frame has been fully decoded.
+     * @param out Reference to a Frame structure where the decoded frame will be stored.
+     * @return true if a frame was successfully read and placed into out, false otherwise.
+     */
     bool poll(protocol::Frame& out);
 
+    /**
+     * @brief Transmit a protocol frame over the UART link.
+     * @param f The frame to send.
+     */
     void send(const protocol::Frame& f);
 
 private:
