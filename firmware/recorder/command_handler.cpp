@@ -1,10 +1,9 @@
 /**
- * CommandHandler class implementation.
- * It handles incoming commands and sends status updates to the user.
+ * Command handler implementation for recorder protocol commands.
  *
  * file: firmware/recorder/command_handler.cpp
  * author: shalom2552
- * date: 2026-05-07
+ * date: 2026-07-09
  */
 #include "command_handler.hpp"
 
@@ -62,10 +61,11 @@ bool replayRecord(const storage::SensorRecord& rec, void*)
     return true;
 }
 
-} // namespace
+} /* namespace */
 
 /*
- * like init  gives you context of storage and current state*/
+ * Bind the live state machine and storage objects after the orchestrator creates them.
+ */
 void CommandHandler::bind(StateMachine& sm, storage::CircularLog& box)
 {
     m_sm = &sm;
@@ -74,7 +74,9 @@ void CommandHandler::bind(StateMachine& sm, storage::CircularLog& box)
 
 void CommandHandler::sendAck()
 {
-    // ACK frames are empty; only the type matters to the peer.
+    /*
+     * ACK frames are empty; only the type matters to the peer.
+     */
     protocol::Frame f{};
     f.type = protocol::FrameType::Ack;
     f.len = 0;
@@ -83,7 +85,9 @@ void CommandHandler::sendAck()
 
 void CommandHandler::sendNack(protocol::NackCode code)
 {
-    // NACK payload carries the protocol-specific rejection reason.
+    /*
+     * NACK payload carries the protocol-specific rejection reason.
+     */
     protocol::Frame f{};
     f.type = protocol::FrameType::Nack;
     f.len = 1;
@@ -93,48 +97,43 @@ void CommandHandler::sendNack(protocol::NackCode code)
 
 void CommandHandler::sendStatus()
 {
-    // Keep the status payload layout aligned with groundstation/state.py.
+    /*
+     * Keep the status payload layout aligned with groundstation/state.py.
+     */
     protocol::Frame f{};
     f.type = protocol::FrameType::Status;
     f.len = 14;
 
+    const bool hasStorage = m_box != nullptr;
+    uint8_t state = 0u;
+    uint8_t sdMounted = 0u;
+    uint8_t currentFile = 0u;
+    uint32_t totalRecords = 0u;
+    uint32_t wrapCount = 0u;
+    uint16_t writeIndex = 0u;
+
     if (m_sm != nullptr) {
-        f.payload[0] = static_cast<uint8_t>(m_sm->state());
-    } else {
-        f.payload[0] = 0u;
+        state = static_cast<uint8_t>(m_sm->state());
     }
 
-    if (m_box != nullptr && m_box->isMounted()) {
-        f.payload[1] = 1u;
-    } else {
-        f.payload[1] = 0u;
+    if (hasStorage) {
+        currentFile = m_box->currentFile();
+        totalRecords = m_box->totalRecords();
+        wrapCount = m_box->wrapCount();
+        writeIndex = m_box->writeIndex();
+
+        if (m_box->isMounted()) {
+            sdMounted = 1u;
+        }
     }
 
+    f.payload[0] = state;
+    f.payload[1] = sdMounted;
     f.payload[2] = storage::LOG_FILE_COUNT;
-
-    if (m_box != nullptr) {
-        f.payload[3] = m_box->currentFile();
-    } else {
-        f.payload[3] = 0u;
-    }
-
-    if (m_box != nullptr) {
-        putU32(&f.payload[4], m_box->totalRecords());
-    } else {
-        putU32(&f.payload[4], 0u);
-    }
-
-    if (m_box != nullptr) {
-        putU32(&f.payload[8], m_box->wrapCount());
-    } else {
-        putU32(&f.payload[8], 0u);
-    }
-
-    if (m_box != nullptr) {
-        putU16(&f.payload[12], m_box->writeIndex());
-    } else {
-        putU16(&f.payload[12], 0u);
-    }
+    f.payload[3] = currentFile;
+    putU32(&f.payload[4], totalRecords);
+    putU32(&f.payload[8], wrapCount);
+    putU16(&f.payload[12], writeIndex);
     sendFrame(f);
 }
 
@@ -161,11 +160,11 @@ void CommandHandler::dispatch(const protocol::Frame& f)
             sendNack(protocol::NackCode::InvalidState);
             return;
         }
-        m_sm->process(Event::UartStop);
         if (m_box->flushMeta() != storage::StorageStatus::Ok) {
             sendNack(protocol::NackCode::StorageError);
             return;
         }
+        m_sm->process(Event::UartStop);
         sendStatus();
         sendAck();
         break;
@@ -224,4 +223,4 @@ void CommandHandler::dispatch(const protocol::Frame& f)
     }
 }
 
-} // namespace kern::recorder
+} /* namespace kern::recorder */

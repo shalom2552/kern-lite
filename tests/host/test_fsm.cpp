@@ -1,6 +1,10 @@
 /*
 Host tests for Day 5 Member A firmware work: recorder FSM, command guards,
 and the SD write failure policy described for the orchestrator.
+
+file: tests/host/test_fsm.cpp
+author: shalom2552
+date: 2026-07-09
 */
 
 #include "../../firmware/recorder/state_machine.hpp"
@@ -8,6 +12,7 @@ and the SD write failure policy described for the orchestrator.
 #include "../../firmware/recorder/comm_link.hpp"
 #include "../../firmware/protocol/frame.hpp"
 #include "../../firmware/storage/circular_log.hpp"
+#include "../../firmware/system/write_failure_policy.hpp"
 #include "fatfs_shim/ff.h"
 
 #include <cstdio>
@@ -23,7 +28,7 @@ using kern::recorder::Event;
 using kern::recorder::State;
 using kern::recorder::StateMachine;
 using kern::storage::CircularLog;
-using kern::storage::StorageStatus;
+using kern::system::WriteFailurePolicy;
 
 static int g_failures = 0;
 static std::vector<Frame> g_sentFrames;
@@ -44,7 +49,7 @@ void CommLink::send(const kern::protocol::Frame& f)
     g_sentFrames.push_back(f);
 }
 
-} // namespace kern::recorder
+} /* namespace kern::recorder */
 
 static void freshRoot(const char* name)
 {
@@ -217,51 +222,30 @@ static void test_cmd_replay_from_fault_nacks_invalid_state()
     std::printf("[OK] CMD_REPLAY from Fault guard\n");
 }
 
-class WriteFailPolicy {
-public:
-    void record(StorageStatus st, StateMachine& sm)
-    {
-        if (st == StorageStatus::Ok) {
-            m_consecutiveFails = 0;
-            return;
-        }
-
-        ++m_consecutiveFails;
-        if (m_consecutiveFails >= 3 && !m_emitted) {
-            sm.process(Event::SdFault);
-            m_emitted = true;
-        }
-    }
-
-    uint8_t emittedCount() const { return m_emitted ? 1u : 0u; }
-
-private:
-    uint8_t m_consecutiveFails = 0;
-    bool m_emitted = false;
-};
-
 static void test_write_failure_policy_faults_on_third_consecutive_failure()
 {
     StateMachine sm;
-    WriteFailPolicy policy;
+    WriteFailurePolicy policy;
 
     CHECK(sm.process(Event::UartStart));
     CHECK(sm.state() == State::Recording);
 
-    policy.record(StorageStatus::IoError, sm);
+    CHECK(!policy.recordFailure());
     CHECK(sm.state() == State::Recording);
-    CHECK(policy.emittedCount() == 0);
+    CHECK(policy.consecutiveFails() == 1);
 
-    policy.record(StorageStatus::IoError, sm);
+    CHECK(!policy.recordFailure());
     CHECK(sm.state() == State::Recording);
-    CHECK(policy.emittedCount() == 0);
+    CHECK(policy.consecutiveFails() == 2);
 
-    policy.record(StorageStatus::IoError, sm);
+    if (policy.recordFailure()) {
+        sm.process(Event::SdFault);
+    }
     CHECK(sm.state() == State::Fault);
-    CHECK(policy.emittedCount() == 1);
+    CHECK(policy.consecutiveFails() == 3);
 
-    policy.record(StorageStatus::IoError, sm);
-    CHECK(policy.emittedCount() == 1);
+    CHECK(policy.recordFailure());
+    CHECK(policy.consecutiveFails() == 3);
 
     std::printf("[OK] write failure policy\n");
 }

@@ -20,7 +20,7 @@ inline constexpr uint8_t LOG_FILE_COUNT = 4;
 inline constexpr uint16_t RECORDS_PER_FILE = 256;
 inline constexpr uint16_t META_FLUSH_EVERY_N = 16;
 inline constexpr uint32_t ERASE_MAGIC = 0xDEADC0DEu;
-inline constexpr uint32_t META_MAGIC = 0x4C4F4700u; // "LOG\0"
+inline constexpr uint32_t META_MAGIC = 0x4C4F4700u; /* "LOG\0" */
 inline constexpr uint32_t META_VERSION = 1u;
 
 #pragma pack(push, 1)
@@ -29,7 +29,10 @@ inline constexpr uint32_t META_VERSION = 1u;
  * 
  * Stored in META.BIN on the SD card to recover state across boots.
  */
-struct LogMeta { // stored in META.BIN
+struct LogMeta {
+    /*
+     * Stored in META.BIN.
+     */
     uint32_t magic;
     uint32_t version;
     uint8_t file_count;
@@ -38,8 +41,8 @@ struct LogMeta { // stored in META.BIN
     uint16_t write_index;
     uint32_t wrap_count;
     uint32_t total_records;
-    uint8_t reserved[10]; // pad to 32 bytes before CRC
-    uint32_t crc32;        // over all preceding bytes
+    uint8_t reserved[10]; /* pad to 32 bytes before CRC */
+    uint32_t crc32;        /* over all preceding bytes */
 };
 #pragma pack(pop)
 
@@ -65,6 +68,12 @@ public:
      * @return StorageStatus indicating success or specific failure.
      */
     StorageStatus mount();
+
+    /**
+     * @brief Close open log files and run a fresh mount/recovery pass.
+     * @return StorageStatus indicating success or specific failure.
+     */
+    StorageStatus remount();
 
     /**
      * @brief Write a sensor record to the circular log.
@@ -165,4 +174,4 @@ private:
     bool m_mounted = false;
 };
 
-} // namespace kern::storage
+} /* namespace kern::storage */

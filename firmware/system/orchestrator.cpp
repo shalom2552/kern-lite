@@ -29,7 +29,9 @@ constexpr uint32_t STATUS_HEARTBEAT_MS = 5000;
 
 void Orchestrator::init()
 {
-	// Bring up shared subsystems before the tasks begin publishing or sending.
+    /*
+     * Bring up shared subsystems before the tasks begin publishing or sending.
+     */
     m_bus.init();
     m_link.init();
     m_buttons.init();
@@ -41,9 +43,11 @@ kern::storage::SensorRecord Orchestrator::assembleRecord()
 	using kern::dsp::ThresholdDetector;
 	using kern::storage::SensorRecord;
 
-	// Assemble one telemetry record from the current sensor snapshot, then
-	// translate raw sensor values into the packed record layout used on disk
-	// and on the wire.
+    /*
+     * Assemble one telemetry record from the current sensor snapshot, then
+     * translate raw sensor values into the packed record layout used on disk
+     * and on the wire.
+     */
 	SensorRecord rec{};
 	uint8_t alertBits = 0;
 	uint8_t faultBits = 0;
@@ -57,8 +61,10 @@ kern::storage::SensorRecord Orchestrator::assembleRecord()
 	float lm35Temp = m_lm35.readCelsius();
 	auto lm35Out = m_chLm35.process(lm35Temp);
 	rec.lm35_c = static_cast<int16_t>(lm35Out.filtered * 10.0f);
-	// Range checks map directly to the fault bit layout used by telemetry.py so
-	// the host and firmware agree on the meaning of each fault bit.
+    /*
+     * Range checks map directly to the fault bit layout used by telemetry.py so
+     * the host and firmware agree on the meaning of each fault bit.
+     */
 	if (lm35Temp < -10.0f || lm35Temp > 100.0f) {
 		faultBits |= kern::storage::kFaultLm35Range;
 	}
@@ -77,8 +83,10 @@ kern::storage::SensorRecord Orchestrator::assembleRecord()
 		faultBits |= kern::storage::kFaultPotStuck;
 	}
 
-	// DHT11 updates slowly, so sample it on a lower cadence and reuse the last
-	// good reading between polls instead of stalling the whole record loop.
+    /*
+     * DHT11 updates slowly, so sample it on a lower cadence and reuse the last
+     * good reading between polls instead of stalling the whole record loop.
+     */
 	if ((m_sensorTick % 20u) == 0u) {
 		float dhtTemp = 0.0f;
 		float dhtHum = 0.0f;
@@ -102,8 +110,10 @@ kern::storage::SensorRecord Orchestrator::assembleRecord()
 	rec.dht_temp_c = static_cast<int16_t>(dhtTempOut.filtered * 10.0f);
 	rec.dht_hum = static_cast<uint16_t>(dhtHumOut.filtered * 10.0f);
 
-	// Alert bits are packed exactly like the host decoder expects, channel by
-	// channel, so downstream tooling can reuse the same bitmask semantics.
+    /*
+     * Alert bits are packed exactly like the host decoder expects, channel by
+     * channel, so downstream tooling can reuse the same bitmask semantics.
+     */
 	if (lm35Out.alert == ThresholdDetector::State::HighAlert) {
 		alertBits |= 0x01;
 	}
@@ -146,8 +156,10 @@ kern::storage::SensorRecord Orchestrator::assembleRecord()
 
 void Orchestrator::runSensorTask()
 {
-	// Initialize the hardware drivers once, then keep publishing records on a
-	// steady cadence so the storage and comms tasks can consume them.
+    /*
+     * Initialize the hardware drivers once, then keep publishing records on a
+     * steady cadence so the storage and comms tasks can consume them.
+     */
 	m_lm35.init();
 	m_dht11.init();
 	m_latch.init();
@@ -163,8 +175,10 @@ void Orchestrator::runSensorTask()
 		kern::storage::SensorRecord rec = assembleRecord();
 		m_bus.publish(rec);
 
-		// The live stream keeps telemetry visible while the comms pipeline is
-		// still in transition to a dedicated RECORD framing path.
+        /*
+         * The live stream keeps telemetry visible while the comms pipeline is
+         * still in transition to a dedicated RECORD framing path.
+         */
 		kern::protocol::Frame out{};
 		out.type = kern::protocol::FrameType::Record;
 		out.len = sizeof(kern::storage::SensorRecord);
@@ -179,9 +193,9 @@ void Orchestrator::runStorageTask()
 {
     for (;;) {
         if (m_sm.isFault()) {
-            if (m_box.isMounted() || m_box.mount() == kern::storage::StorageStatus::Ok) {
+            if (m_box.remount() == kern::storage::StorageStatus::Ok) {
                 m_faultMountFailCount = 0;
-                m_writeFailCount = 0;
+                m_writeFailPolicy.reset();
                 m_sm.process(kern::recorder::Event::FaultCleared);
             } else if (++m_faultMountFailCount >= MAX_WRITE_FAILS) {
                 NVIC_SystemReset();
@@ -198,24 +212,26 @@ void Orchestrator::runStorageTask()
 
         if (!m_box.isMounted()) {
             if (m_box.mount() != kern::storage::StorageStatus::Ok) {
-                if (++m_writeFailCount >= MAX_WRITE_FAILS) {
+                if (m_writeFailPolicy.recordFailure()) {
                     m_sm.process(kern::recorder::Event::SdFault);
                 }
                 vTaskDelay(pdMS_TO_TICKS(100));
                 continue;
             }
-            m_writeFailCount = 0;
+            m_writeFailPolicy.reset();
         }
 
-	    // Store each new record exactly once by comparing the sequence number
-	    // against the last committed value.
+        /*
+         * Store each new record exactly once by comparing the sequence number
+         * against the last committed value.
+         */
         kern::storage::SensorRecord rec = m_bus.latest();
         if (rec.seq != m_lastStoredSeq) {
             kern::storage::StorageStatus st = m_box.writeRecord(rec);
             if (st == kern::storage::StorageStatus::Ok) {
                 m_lastStoredSeq = rec.seq;
-                m_writeFailCount = 0;
-            } else if (++m_writeFailCount >= MAX_WRITE_FAILS) {
+                m_writeFailPolicy.reset();
+            } else if (m_writeFailPolicy.recordFailure()) {
                 m_sm.process(kern::recorder::Event::SdFault);
             }
         }
@@ -264,8 +280,14 @@ void Orchestrator::runSystemTask()
         }
 
         if (m_buttons.pollSw1() == kern::sensors::PressType::Short) {
-            if (m_sm.process(kern::recorder::Event::ShortPress)) {
-                m_box.flushMeta();
+            if (m_sm.isLogging()) {
+                if (m_box.flushMeta() != kern::storage::StorageStatus::Ok) {
+                    m_handler.sendNack(kern::protocol::NackCode::StorageError);
+                    m_handler.sendStatus();
+                    vTaskDelay(pdMS_TO_TICKS(kern::config::kSystemPeriodMs));
+                    continue;
+                }
+                m_sm.process(kern::recorder::Event::ShortPress);
                 m_handler.sendStatus();
             }
         }

@@ -17,6 +17,7 @@
 #include "../dsp/channel.hpp"
 #include "../storage/sensor_record.hpp"
 #include "config.hpp"
+#include "write_failure_policy.hpp"
 
 #include <cstdint>
 
@@ -91,7 +92,7 @@ private:
     uint16_t m_recSeq = 0;
     uint16_t m_lastStoredSeq = 0;
     uint32_t m_sensorTick = 0;
-    uint8_t m_writeFailCount = 0;
+    WriteFailurePolicy m_writeFailPolicy{};
     uint8_t m_faultMountFailCount = 0;
     float m_lastDhtTemp = 0.0f;
     float m_lastDhtHum = 0.0f;
