@@ -36,12 +36,13 @@ public:
     /**
      * Sends a 14 byte STATUS frame reporting device state:
      *  state, sd_mounted, file_count, current_file, total_records,
-     *  wrap_count, records_in_file.
+     *  wrap_count, write_index.
      */
     void sendStatus();
 
     /**
-     * Handles CMD_STATUS -> sendStatus();
+     * Handles all five commands with state guards:
+     *  CMD_START, CMD_STOP, CMD_STATUS, CMD_REPLAY, CMD_ERASE;
      *  any other type -> sendNack(BadCommand).
      *
      * @param f The incoming frame to handle.

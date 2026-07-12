@@ -1,3 +1,11 @@
+/*
+Recorder FSM transition table implementation.
+
+file: firmware/recorder/state_machine.cpp
+author: Smallejoo
+date: 2026-07-09
+*/
+
 #include "state_machine.hpp"
 
 namespace kern::recorder {
