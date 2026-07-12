@@ -14,7 +14,8 @@ from groundstation.frame import Frame, Decoder, encode, FrameType, CrcError, Syn
 
 
 class SerialLink:
-    def __init__(self):
+    def __init__(self, state_model=None, storage_model=None, telemetry_model=None,
+                 session=None, integrity_checker=None, alert_log=None):
         self.ser: Optional[serial.Serial] = None
         self.decoder = Decoder()
 
@@ -37,6 +38,19 @@ class SerialLink:
         self._pending_command_type = None
         self._pending_command_time = None
         self.commands_sent = 0
+
+        # wired receive path. Any of these may stay None, in which case
+        # that stage of dispatch is simply skipped -- keeps SerialLink usable
+        # fully wired.
+        self.state_model = state_model
+        self.storage_model = storage_model
+        self.telemetry_model = telemetry_model
+        self.session = session
+        self.integrity_checker = integrity_checker
+        self.alert_log = alert_log
+
+        self._in_replay = False  # True between CMD_REPLAY sent and its ACK
+        self._last_seq: Optional[int] = None
 
     @property
     def rolling_avg_latency_ms(self):
@@ -88,6 +102,8 @@ class SerialLink:
         self._pending_command_type = command_type
         self._pending_command_time = time.time()
         self.commands_sent += 1
+        if command_type == FrameType.CmdReplay:
+            self._in_replay = True
 
     def send_frame(self, frame: Frame):
         # Encode the frame before writing so every outbound message follows the
@@ -141,9 +157,73 @@ class SerialLink:
                 if frame.type == FrameType.Nack:
                     self.nack_count += 1
 
+                self._dispatch(frame)
                 return frame
 
         return None
+
+    def _dispatch(self, frame: Frame) -> None:
+        # route each frame type to its model per spec 7.2 / FR-GS-07.
+        # RECORD  -> integrity re-check -> telemetry ingest -> session append
+        #            -> live/replay counter on StorageModel
+        # STATUS  -> DeviceStateModel + StorageModel
+        # NACK    -> decode NackCode, log to alert history
+        if frame.type == FrameType.Record:
+            self._dispatch_record(frame)
+        elif frame.type == FrameType.Status:
+            self._dispatch_status(frame)
+        elif frame.type == FrameType.Nack:
+            self._dispatch_nack(frame)
+        elif frame.type == FrameType.Ack:
+            # ACK closes any in-flight REPLAY transaction (spec 7.2).
+            self._in_replay = False
+
+    def _dispatch_record(self, frame: Frame) -> None:
+        from groundstation.telemetry import RecordDecoder
+
+        wall_time = time.time()
+
+        if self.integrity_checker is not None:
+            # Frame CRC already passed (decoder wouldn't have returned a
+            # Frame otherwise); this re-checks the record-level CRC and
+            # logs STORAGE_CORRUPTION_WARNING internally if it fails.
+            self.integrity_checker.check_frame(frame)
+
+        record = RecordDecoder.decode(frame.payload)
+
+        if self.integrity_checker is not None:
+            self.integrity_checker.check_sequence(record, self._last_seq)
+        self._last_seq = record.seq
+
+        if self.telemetry_model is not None:
+            self.telemetry_model.ingest(record, wall_time=wall_time)
+
+        if self.session is not None:
+            self.session.append_record(record, wall_time)
+
+        if self.storage_model is not None:
+            if self._in_replay:
+                self.storage_model.note_replay_record()
+            else:
+                self.storage_model.note_live_record()
+
+    def _dispatch_status(self, frame: Frame) -> None:
+        if self.state_model is not None:
+            self.state_model.update_from_status(frame)
+        if self.storage_model is not None:
+            self.storage_model.update_from_status(frame)
+
+    def _dispatch_nack(self, frame: Frame) -> None:
+        from groundstation.frame import NackCode
+
+        code_raw = frame.payload[0] if frame.payload else None
+        try:
+            code = NackCode(code_raw)
+        except (TypeError, ValueError):
+            code = code_raw
+
+        if self.alert_log is not None:
+            self.alert_log.add("NACK", code=code, command=self._pending_command_type)
 
     def _auto_reconnect_loop(self):
         # Run until disconnect() clears the flag, reopening the port whenever

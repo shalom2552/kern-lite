@@ -24,6 +24,10 @@ inline constexpr uint8_t kLogFileCount = 4;        ///< Number of log files in c
 inline constexpr uint16_t kRecordsPerFile = 256;   ///< Maximum number of records stored per log file
 inline constexpr uint32_t kEraseMagic = 0xDEADC0DEu; ///< Authorization code for erasing logs
 
+inline constexpr uint32_t kChirpFreqHz = 2000;    // Buzzer chirp frequency on entering Recording
+inline constexpr uint32_t kChirpMs = 100;         // Buzzer chirp duration in milliseconds
+inline constexpr uint32_t kFaultToneFreqHz = 400; // Continuous buzzer tone frequency while in Fault
+
 
 inline constexpr std::size_t kDspWindow = 16;      ///< Moving average window size for DSP pipelines
 
