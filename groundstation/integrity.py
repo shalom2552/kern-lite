@@ -1,3 +1,10 @@
+"""
+Integrity checking for decoded telemetry records.
+
+file: groundstation/integrity.py
+author: Yair
+date: 2026-12-07
+"""
 from __future__ import annotations
 
 import logging
@@ -6,6 +13,7 @@ import struct
 from groundstation.crc import crc32
 from groundstation.frame import Frame, FrameType
 from groundstation.telemetry import RECORD_SIZE
+from groundstation.telemetry import SensorRecord
 
 
 logger = logging.getLogger(__name__)
@@ -44,7 +52,7 @@ class IntegrityChecker:
 
         return True
 
-    def check_sequence(self, record, last_seq: int) -> int:
+    def check_sequence(self, record: SensorRecord, last_seq: int) -> int:
         """Report how many sequence numbers were skipped before this record.
 
         The sequence counter is 16-bit and wraps at 65536, so the expected next
