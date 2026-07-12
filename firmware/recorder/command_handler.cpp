@@ -154,11 +154,11 @@ void CommandHandler::dispatch(const protocol::Frame& f)
             sendNack(protocol::NackCode::InvalidState);
             return;
         }
-        if (m_box->flushMeta() != storage::StorageStatus::Ok) {
-            sendNack(protocol::NackCode::StorageError);
-            return;
-        }
+        // Leave Recording first so the flush does not contend with the
+        // storage task for the FatFs mutex; mount recovery covers a
+        // failed flush.
         m_sm->process(Event::UartStop);
+        m_box->flushMeta();
         sendStatus();
         sendAck();
         break;

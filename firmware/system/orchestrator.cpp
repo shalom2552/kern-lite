@@ -320,14 +320,10 @@ void Orchestrator::handleShortPress()
         return;
     }
 
-    // Flush metadata before moving back to Idle.
-    if (m_box.flushMeta() != kern::storage::StorageStatus::Ok) {
-        m_handler.sendNack(kern::protocol::NackCode::StorageError);
-        m_handler.sendStatus();
-        return;
-    }
-
+    // Leave Recording first so the flush does not contend with the storage
+    // task for the FatFs mutex; mount recovery covers a failed flush.
     m_sm.process(kern::recorder::Event::ShortPress);
+    m_box.flushMeta();
     m_handler.sendStatus();
 }
 
