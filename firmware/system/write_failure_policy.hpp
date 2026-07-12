@@ -12,7 +12,7 @@ date: 2026-07-10
 
 namespace kern::system {
 
-/**
+/*
  * @brief Counts consecutive storage failures and reports when the fault limit is reached.
  */
 class WriteFailurePolicy {
@@ -45,4 +45,4 @@ private:
     uint8_t m_consecutiveFails = 0;
 };
 
-} /* namespace kern::system */
+} // namespace kern::system

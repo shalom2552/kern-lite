@@ -49,7 +49,7 @@ void CommLink::send(const kern::protocol::Frame& f)
     g_sentFrames.push_back(f);
 }
 
-} /* namespace kern::recorder */
+} // namespace kern::recorder
 
 static void freshRoot(const char* name)
 {

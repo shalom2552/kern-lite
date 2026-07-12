@@ -15,8 +15,6 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
-
-
 extern ADC_HandleTypeDef hadc1;
 extern UART_HandleTypeDef huart2;
 extern IWDG_HandleTypeDef hiwdg;
@@ -29,10 +27,7 @@ constexpr uint8_t MAX_WRITE_FAILS = 3;
 constexpr uint32_t STATUS_HEARTBEAT_MS = 5000;
 constexpr uint32_t DHT_SAMPLE_EVERY_N_TICKS = 20;
 
-/*
- * Alert bits are packed exactly like the host decoder expects, channel by
- * channel, so downstream tooling can reuse the same bitmask semantics.
- */
+// Alert bits are packed exactly like the host decoder expects.
 constexpr uint8_t kAlertLm35High = 0x01;
 constexpr uint8_t kAlertLm35Low = 0x02;
 constexpr uint8_t kAlertLightHigh = 0x04;
@@ -55,13 +50,11 @@ uint8_t alertMask(kern::dsp::ThresholdDetector::State alert, uint8_t highBit, ui
     return 0u;
 }
 
-} /* namespace */
+} // namespace
 
 void Orchestrator::init()
 {
-    /*
-     * Bring up shared subsystems before the tasks begin publishing or sending.
-     */
+    // Bring up shared subsystems before the tasks begin publishing or sending.
     m_bus.init();
     m_link.init();
     m_buttons.init();
@@ -71,10 +64,7 @@ void Orchestrator::init()
 void Orchestrator::sampleAnalogSensors(kern::storage::SensorRecord& rec,
                                        uint8_t& alertBits, uint8_t& faultBits)
 {
-    /*
-     * Range checks map directly to the fault bit layout used by telemetry.py so
-     * the host and firmware agree on the meaning of each fault bit.
-     */
+    // Range checks map directly to the fault bit layout used by telemetry.py.
     float lm35Temp = m_lm35.readCelsius();
     auto lm35Out = m_chLm35.process(lm35Temp);
     rec.lm35_c = static_cast<int16_t>(lm35Out.filtered * 10.0f);
@@ -103,10 +93,7 @@ void Orchestrator::sampleAnalogSensors(kern::storage::SensorRecord& rec,
 void Orchestrator::sampleDht(kern::storage::SensorRecord& rec,
                              uint8_t& alertBits, uint8_t& faultBits)
 {
-    /*
-     * DHT11 updates slowly, so sample it on a lower cadence and reuse the last
-     * good reading between polls instead of stalling the whole record loop.
-     */
+    // DHT11 updates slowly, so reuse the last good reading between polls.
     if ((m_sensorTick % DHT_SAMPLE_EVERY_N_TICKS) == 0u) {
         float dhtTemp = 0.0f;
         float dhtHum = 0.0f;
@@ -116,11 +103,9 @@ void Orchestrator::sampleDht(kern::storage::SensorRecord& rec,
         if (st == kern::sensors::Dht11::Status::Ok) {
             m_lastDhtTemp = dhtTemp;
             m_lastDhtHum = dhtHum;
-        }
-        else if (st == kern::sensors::Dht11::Status::Timeout) {
+        } else if (st == kern::sensors::Dht11::Status::Timeout) {
             faultBits |= kern::storage::kFaultDhtTimeout;
-        }
-        else {
+        } else {
             faultBits |= kern::storage::kFaultDhtBadData;
         }
     }
@@ -137,11 +122,7 @@ kern::storage::SensorRecord Orchestrator::assembleRecord()
 {
     using kern::storage::SensorRecord;
 
-    /*
-     * Assemble one telemetry record from the current sensor snapshot, then
-     * translate raw sensor values into the packed record layout used on disk
-     * and on the wire.
-     */
+    // Assemble one telemetry record from the current sensor snapshot.
     SensorRecord rec{};
     uint8_t alertBits = 0;
     uint8_t faultBits = 0;
@@ -168,10 +149,7 @@ kern::storage::SensorRecord Orchestrator::assembleRecord()
 
 void Orchestrator::streamRecord(const kern::storage::SensorRecord& rec)
 {
-    /*
-     * The live stream keeps telemetry visible while the comms pipeline is
-     * still in transition to a dedicated RECORD framing path.
-     */
+    // The live stream keeps telemetry visible over UART RECORD frames.
     kern::protocol::Frame out{};
     out.type = kern::protocol::FrameType::Record;
     out.len = sizeof(kern::storage::SensorRecord);
@@ -181,10 +159,7 @@ void Orchestrator::streamRecord(const kern::storage::SensorRecord& rec)
 
 void Orchestrator::runSensorTask()
 {
-    /*
-     * Initialize the hardware drivers once, then keep publishing records on a
-     * steady cadence so the storage and comms tasks can consume them.
-     */
+    // Initialize the hardware drivers once, then publish records on a steady cadence.
     m_lm35.init();
     m_dht11.init();
     m_latch.init();
@@ -204,10 +179,7 @@ void Orchestrator::runSensorTask()
 
 void Orchestrator::recoverFromFault()
 {
-    /*
-     * In Fault the only job is to win the SD card back; after too many failed
-     * remounts fall back to a full system reset per the Day 5 fault policy.
-     */
+    // In Fault, try to win the SD card back before falling back to system reset.
     if (m_box.remount() == kern::storage::StorageStatus::Ok) {
         m_faultMountFailCount = 0;
         m_writeFailPolicy.reset();
@@ -239,10 +211,7 @@ bool Orchestrator::ensureMounted()
 
 void Orchestrator::storeLatestRecord()
 {
-    /*
-     * Store each new record exactly once by comparing the sequence number
-     * against the last committed value.
-     */
+    // Store each new record exactly once by comparing the sequence number.
     kern::storage::SensorRecord rec = m_bus.latest();
     if (rec.seq == m_lastStoredSeq) {
         return;
@@ -283,10 +252,7 @@ void Orchestrator::runCommsTask()
 
 void Orchestrator::updateStateLeds()
 {
-    /*
-     * The RGB LED mirrors the FSM: solid green while recording, blinking red
-     * in fault, everything off in idle.
-     */
+    // The RGB LED mirrors the FSM state.
     if (m_sm.isLogging()) {
         hal::gpio::set(board::RGB_G);
         hal::gpio::clear(board::RGB_R);
@@ -321,10 +287,7 @@ void Orchestrator::handleShortPress()
         return;
     }
 
-    /*
-     * A short press stops the recording; flush metadata first so the ring
-     * position survives the transition back to Idle.
-     */
+    // Flush metadata before moving back to Idle.
     if (m_box.flushMeta() != kern::storage::StorageStatus::Ok) {
         m_handler.sendNack(kern::protocol::NackCode::StorageError);
         m_handler.sendStatus();
@@ -355,4 +318,4 @@ void Orchestrator::runSystemTask()
     }
 }
 
-} /* namespace kern::system */
+} // namespace kern::system

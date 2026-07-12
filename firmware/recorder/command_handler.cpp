@@ -1,4 +1,4 @@
-/**
+/*
  * Command handler implementation for recorder protocol commands.
  *
  * file: firmware/recorder/command_handler.cpp
@@ -61,7 +61,7 @@ bool replayRecord(const storage::SensorRecord& rec, void*)
     return true;
 }
 
-} /* namespace */
+} // namespace
 
 /*
  * Bind the live state machine and storage objects after the orchestrator creates them.
@@ -74,9 +74,7 @@ void CommandHandler::bind(StateMachine& sm, storage::CircularLog& box)
 
 void CommandHandler::sendAck()
 {
-    /*
-     * ACK frames are empty; only the type matters to the peer.
-     */
+    // ACK frames are empty; only the type matters to the peer.
     protocol::Frame f{};
     f.type = protocol::FrameType::Ack;
     f.len = 0;
@@ -85,9 +83,7 @@ void CommandHandler::sendAck()
 
 void CommandHandler::sendNack(protocol::NackCode code)
 {
-    /*
-     * NACK payload carries the protocol-specific rejection reason.
-     */
+    // NACK payload carries the protocol-specific rejection reason.
     protocol::Frame f{};
     f.type = protocol::FrameType::Nack;
     f.len = 1;
@@ -97,9 +93,7 @@ void CommandHandler::sendNack(protocol::NackCode code)
 
 void CommandHandler::sendStatus()
 {
-    /*
-     * Keep the status payload layout aligned with groundstation/state.py.
-     */
+    // Keep the status payload layout aligned with groundstation/state.py.
     protocol::Frame f{};
     f.type = protocol::FrameType::Status;
     f.len = 14;
@@ -223,4 +217,4 @@ void CommandHandler::dispatch(const protocol::Frame& f)
     }
 }
 
-} /* namespace kern::recorder */
+} // namespace kern::recorder
