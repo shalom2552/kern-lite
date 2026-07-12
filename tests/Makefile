@@ -21,13 +21,13 @@ DSP_SRC   = host/test_dsp.cpp ../firmware/protocol/crc32.cpp
 # --- storage ---
 STORAGE_SRC = host/test_storage.cpp ../firmware/storage/circular_log.cpp \
               host/fatfs_shim/ff.cpp ../firmware/protocol/crc32.cpp
-CFLAGS += -Ihost/stubs
+CFLAGS += -Ihost/fatfs_shim
 
-# --- day 5 member A: FSM + command guards ---
+# --- FSM + command guards ---
 FSM_SRC = host/test_fsm.cpp ../firmware/recorder/state_machine.cpp \
           ../firmware/recorder/command_handler.cpp ../firmware/storage/circular_log.cpp \
           host/fatfs_shim/ff.cpp ../firmware/protocol/crc32.cpp
-CFLAGS += -Ihost/fatfs_shim
+CFLAGS += -Ihost/stubs
 
 # --- example: new suite ---
 # EXAMPLE_SRC = host/test_example.cpp ../firmware/<module>/<module>.cpp ../firmware/protocol/crc32.cpp
