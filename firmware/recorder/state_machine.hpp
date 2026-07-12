@@ -1,3 +1,11 @@
+/*
+Three-state recorder FSM: Idle, Recording, Fault.
+
+file: firmware/recorder/state_machine.hpp
+author: Smallejoo
+date: 2026-07-08
+*/
+
 #pragma once
 
 #include <cstdint>
@@ -7,7 +15,7 @@ namespace kern::recorder {
 /**
  * @brief Device recorder states.
  */
-enum class State : uint8_t { Idle=0, Recording=1, Fault=2 };
+enum class State : uint8_t { Idle = 0, Recording = 1, Fault = 2 };
 
 /**
  * @brief Recorder state transition events.
@@ -49,8 +57,9 @@ public:
      * @return true if state is Fault.
      */
     bool isFault() const { return m_state == State::Fault; }
+
 private:
     State m_state = State::Idle;
 };
 
-}
+} // namespace kern::recorder

@@ -5,6 +5,7 @@ Debug/
 Release/
 build/
 *.launch
+*.o
 
 # Python
 .venv/
