@@ -62,13 +62,58 @@ public:
      * @brief Get the singleton instance of the Orchestrator.
      * @return Reference to the Orchestrator instance.
      */
-    static Orchestrator& instance() { static Orchestrator o; return o; }
+    static Orchestrator& instance()
+    {
+        static Orchestrator o;
+        return o;
+    }
 private:
     /**
      * @brief Collect filtered sensor values and package them into a SensorRecord.
      * @return Generated SensorRecord.
      */
     storage::SensorRecord assembleRecord();
+
+    /**
+     * @brief Read, filter, and range-check the LM35, photodiode, and potentiometer channels.
+     */
+    void sampleAnalogSensors(storage::SensorRecord& rec, uint8_t& alertBits, uint8_t& faultBits);
+
+    /**
+     * @brief Poll the DHT11 on its slow cadence and filter the last good reading.
+     */
+    void sampleDht(storage::SensorRecord& rec, uint8_t& alertBits, uint8_t& faultBits);
+
+    /**
+     * @brief Send one record over the comm link as a live RECORD frame.
+     */
+    void streamRecord(const storage::SensorRecord& rec);
+
+    /**
+     * @brief Attempt an SD remount while in Fault; reset the board after repeated failures.
+     */
+    void recoverFromFault();
+
+    /**
+     * @brief Mount the SD card if needed, escalating to SdFault on repeated failures.
+     * @return true when the card is mounted and writable.
+     */
+    bool ensureMounted();
+
+    /**
+     * @brief Write the newest published record to storage exactly once.
+     */
+    void storeLatestRecord();
+
+    /**
+     * @brief Drive the RGB LED pattern for the current FSM state.
+     */
+    void updateStateLeds();
+
+    /**
+     * @brief Stop the recording on a short SW1 press, flushing metadata first.
+     */
+    void handleShortPress();
 
     recorder::StateMachine m_sm;
     recorder::SensorBus m_bus;
@@ -94,6 +139,7 @@ private:
     uint32_t m_sensorTick = 0;
     WriteFailurePolicy m_writeFailPolicy{};
     uint8_t m_faultMountFailCount = 0;
+    bool m_faultBlinkOn = false;
     float m_lastDhtTemp = 0.0f;
     float m_lastDhtHum = 0.0f;
 };
