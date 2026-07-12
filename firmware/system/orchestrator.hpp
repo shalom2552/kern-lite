@@ -116,6 +116,11 @@ private:
      */
     void handleShortPress();
 
+    /*
+     * @brief Fire the buzzer entry actions on state transitions and expire the chirp.
+     */
+    void updateStateTones(uint32_t now);
+
     recorder::StateMachine m_sm;
     recorder::SensorBus m_bus;
     storage::CircularLog m_box;
@@ -141,6 +146,9 @@ private:
     WriteFailurePolicy m_writeFailPolicy{};
     uint8_t m_faultMountFailCount = 0;
     bool m_faultBlinkOn = false;
+    recorder::State m_prevState = recorder::State::Idle;
+    bool m_chirpActive = false;
+    uint32_t m_chirpStartMs = 0;
     float m_lastDhtTemp = 0.0f;
     float m_lastDhtHum = 0.0f;
 };
