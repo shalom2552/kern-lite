@@ -20,7 +20,9 @@ static constexpr uint32_t kRecordSize = sizeof(SensorRecord);
 static constexpr uint32_t kCapacity = static_cast<uint32_t>(LOG_FILE_COUNT) * RECORDS_PER_FILE;
 static constexpr const char* kMetaPath = "0:META.BIN";
 
-// 8.3 file names on volume 0. Index maps to LOG0N.BIN.
+/*
+ * 8.3 file names on volume 0. Index maps to LOG0N.BIN.
+ */
 static const char* logPath(uint8_t file)
 {
     // The FatFs volume uses a fixed ring of numbered files, so map the slot
@@ -31,14 +33,20 @@ static const char* logPath(uint8_t file)
     return names[file];
 }
 
-// Ordering key for "which record is newest": timestamp, then ms, then seq.
-// Returns true when a is strictly newer than b.
+/*
+ * Ordering key for "which record is newest": timestamp, then ms, then seq.
+ * Returns true when a is strictly newer than b.
+ */
 static bool newer(const SensorRecord& a, const SensorRecord& b)
 {
     // Compare timestamps first, then ms, then sequence to reconstruct order
     // even when several records share the same coarse timestamp.
-    if (a.timestamp != b.timestamp) return a.timestamp > b.timestamp;
-    if (a.ms != b.ms) return a.ms > b.ms;
+    if (a.timestamp != b.timestamp) {
+        return a.timestamp > b.timestamp;
+    }
+    if (a.ms != b.ms) {
+        return a.ms > b.ms;
+    }
     return a.seq > b.seq;
 }
 
@@ -105,8 +113,10 @@ StorageStatus CircularLog::writeMeta()
     return StorageStatus::Ok;
 }
 
-// Read one record from a circular slot. A slot past EOF is unwritten: return a
-// zeroed record (CRC fails) instead of expanding the file. False on I/O error.
+/*
+ * Read one record from a circular slot. A slot past EOF is unwritten: return a
+ * zeroed record (CRC fails) instead of expanding the file. False on I/O error.
+ */
 static bool readSlot(FIL* files, uint32_t globalPos, SensorRecord& out)
 {
     // A slot beyond the file size is treated as unwritten, which keeps the
@@ -173,7 +183,9 @@ StorageStatus CircularLog::recoverPosition()
     return StorageStatus::Ok;
 }
 
-// Advance the write head one slot, rolling files and wrap_count as needed.
+/*
+ * Advance the write head one slot, rolling files and wrap_count as needed.
+ */
 static void advanceHead(LogMeta& meta)
 {
     ++meta.write_index;
@@ -255,6 +267,19 @@ StorageStatus CircularLog::mount()
 
     m_mounted = true;
     return StorageStatus::Ok;
+}
+
+StorageStatus CircularLog::remount()
+{
+    for (uint8_t i = 0; i < LOG_FILE_COUNT; ++i) {
+        if (m_filesOpen[i]) {
+            f_close(&m_files[i]);
+            m_filesOpen[i] = false;
+        }
+    }
+
+    m_mounted = false;
+    return mount();
 }
 
 StorageStatus CircularLog::writeRecord(const SensorRecord& r)
@@ -342,6 +367,14 @@ StorageStatus CircularLog::eraseAll(uint32_t magic)
 
     m_mounted = false;
     return mount();
+}
+
+StorageStatus CircularLog::flushMeta()
+{
+    if (!m_mounted) {
+        return StorageStatus::NotMounted;
+    }
+    return writeMeta();
 }
 
 uint32_t CircularLog::totalRecords() const { return m_meta.total_records; }
