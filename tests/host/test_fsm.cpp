@@ -222,6 +222,129 @@ static void test_cmd_replay_from_fault_nacks_invalid_state()
     std::printf("[OK] CMD_REPLAY from Fault guard\n");
 }
 
+static void test_cmd_start_happy_path_status_then_ack()
+{
+    freshRoot("fsm_cmd_start_ok");
+    CommLink link;
+    resetCapture(link);
+    StateMachine sm;
+    CircularLog box;
+    CommandHandler handler;
+    handler.bind(sm, box);
+
+    handler.dispatch(command(FrameType::CmdStart));
+
+    CHECK(sm.state() == State::Recording);
+    CHECK(g_sentFrames.size() == 2);
+    if (g_sentFrames.size() == 2) {
+        CHECK(g_sentFrames[0].type == FrameType::Status);
+        CHECK(g_sentFrames[0].payload[0] == 1);
+        CHECK(g_sentFrames[1].type == FrameType::Ack);
+    }
+    std::printf("[OK] CMD_START happy path\n");
+}
+
+static void test_cmd_stop_happy_path_transitions_to_idle()
+{
+    freshRoot("fsm_cmd_stop_ok");
+    CommLink link;
+    resetCapture(link);
+    StateMachine sm;
+    CircularLog box;
+    CommandHandler handler;
+    handler.bind(sm, box);
+
+    CHECK(sm.process(Event::UartStart));
+    handler.dispatch(command(FrameType::CmdStop));
+
+    // The transition must happen even when the meta flush cannot run
+    // (box unmounted here); recovery rebuilds the position on mount.
+    CHECK(sm.state() == State::Idle);
+    CHECK(g_sentFrames.size() == 2);
+    if (g_sentFrames.size() == 2) {
+        CHECK(g_sentFrames[0].type == FrameType::Status);
+        CHECK(g_sentFrames[0].payload[0] == 0);
+        CHECK(g_sentFrames[1].type == FrameType::Ack);
+    }
+    std::printf("[OK] CMD_STOP happy path\n");
+}
+
+static void test_unknown_command_nacks_bad_command()
+{
+    freshRoot("fsm_cmd_unknown");
+    CommLink link;
+    resetCapture(link);
+    StateMachine sm;
+    CircularLog box;
+    CommandHandler handler;
+    handler.bind(sm, box);
+
+    Frame f{};
+    f.type = static_cast<FrameType>(0xFF);
+    handler.dispatch(f);
+
+    expectNack(NackCode::BadCommand);
+    std::printf("[OK] unknown command guard\n");
+}
+
+static void test_cmd_erase_short_payload_nacks_bad_magic()
+{
+    freshRoot("fsm_cmd_erase_short");
+    CommLink link;
+    resetCapture(link);
+    StateMachine sm;
+    CircularLog box;
+    CommandHandler handler;
+    handler.bind(sm, box);
+
+    Frame f = command(FrameType::CmdErase);
+    f.len = 3;
+    handler.dispatch(f);
+
+    expectNack(NackCode::BadMagic);
+    std::printf("[OK] CMD_ERASE short payload guard\n");
+}
+
+static void test_cmd_replay_unmounted_nacks_storage_error()
+{
+    freshRoot("fsm_cmd_replay_unmounted");
+    CommLink link;
+    resetCapture(link);
+    StateMachine sm;
+    CircularLog box;
+    CommandHandler handler;
+    handler.bind(sm, box);
+
+    handler.dispatch(command(FrameType::CmdReplay));
+
+    expectNack(NackCode::StorageError);
+    std::printf("[OK] CMD_REPLAY unmounted guard\n");
+}
+
+static void test_status_payload_layout()
+{
+    freshRoot("fsm_status_layout");
+    CommLink link;
+    resetCapture(link);
+    StateMachine sm;
+    CircularLog box;
+    CommandHandler handler;
+    handler.bind(sm, box);
+
+    handler.dispatch(command(FrameType::CmdStatus));
+
+    CHECK(g_sentFrames.size() == 1);
+    if (g_sentFrames.size() == 1) {
+        const Frame& f = g_sentFrames[0];
+        CHECK(f.type == FrameType::Status);
+        CHECK(f.len == 14);
+        CHECK(f.payload[0] == 0); // Idle
+        CHECK(f.payload[1] == 0); // not mounted
+        CHECK(f.payload[2] == kern::storage::LOG_FILE_COUNT);
+    }
+    std::printf("[OK] STATUS payload layout\n");
+}
+
 static void test_write_failure_policy_faults_on_third_consecutive_failure()
 {
     StateMachine sm;
@@ -258,6 +381,12 @@ int main()
     test_cmd_erase_from_recording_nacks_invalid_state();
     test_cmd_erase_wrong_magic_nacks_bad_magic();
     test_cmd_replay_from_fault_nacks_invalid_state();
+    test_cmd_start_happy_path_status_then_ack();
+    test_cmd_stop_happy_path_transitions_to_idle();
+    test_unknown_command_nacks_bad_command();
+    test_cmd_erase_short_payload_nacks_bad_magic();
+    test_cmd_replay_unmounted_nacks_storage_error();
+    test_status_payload_layout();
     test_write_failure_policy_faults_on_third_consecutive_failure();
 
     if (g_failures == 0) {

@@ -7,6 +7,7 @@ date: 2026-06-07
 """
 import time
 import threading
+from collections import deque
 from typing import Optional
 import serial
 
@@ -18,6 +19,9 @@ class SerialLink:
                  session=None, integrity_checker=None, alert_log=None):
         self.ser: Optional[serial.Serial] = None
         self.decoder = Decoder()
+
+        # decoded frames not yet handed to the caller
+        self._rx_frames = deque()
 
         self.rx_count = 0
         self.tx_count = 0
@@ -117,50 +121,56 @@ class SerialLink:
 
     def receive_frame(self) -> Optional[Frame]:
         # Read whatever bytes are currently buffered, then let the stateful
-        # decoder pull complete frames out of the stream.
+        # decoder pull complete frames out of the stream. Frames are queued
+        # so a chunk holding several of them loses none.
         if self.ser is None or not self.ser.is_open:
             return None
 
-        try:
-            data = self.ser.read(self.ser.in_waiting or 1)
-        except Exception:
-            self.connection_state = "reconnecting"
+        if not self._rx_frames:
+            try:
+                data = self.ser.read(self.ser.in_waiting or 1)
+            except Exception:
+                self.connection_state = "reconnecting"
+                return None
+
+            for byte in data:
+                try:
+                    frame = self.decoder.feed(byte)
+
+                except CrcError:
+                    self.crc_error_count += 1
+                    continue
+
+                except SyncError:
+                    self.sync_error_count += 1
+                    continue
+
+                if frame is not None:
+                    self._rx_frames.append(frame)
+
+        if not self._rx_frames:
             return None
 
-        for byte in data:
-            try:
-                frame = self.decoder.feed(byte)
+        frame = self._rx_frames.popleft()
+        self.rx_count += 1
 
-            except CrcError:
-                self.crc_error_count += 1
-                continue
+        if self._pending_command_time is not None:
+            # Associate the first reply after a command with that
+            # command to produce a command-to-response latency figure.
+            self.last_latency_ms = (time.time() - self._pending_command_time) * 1000
+            self._latencies.append(self.last_latency_ms)
 
-            except SyncError:
-                self.sync_error_count += 1
-                continue
+            if len(self._latencies) > 20:
+                self._latencies.pop(0)
 
-            if frame is not None:
-                self.rx_count += 1
+            self._pending_command_time = None
 
-                if self._pending_command_time is not None:
-                    # Associate the first reply after a command with that
-                    # command to produce a command-to-response latency figure.
-                    self.last_latency_ms = (time.time() - self._pending_command_time) * 1000
-                    self._latencies.append(self.last_latency_ms)
+        #  real NACK is 0x21 / FrameType.Nack
+        if frame.type == FrameType.Nack:
+            self.nack_count += 1
 
-                    if len(self._latencies) > 20:
-                        self._latencies.pop(0)
-
-                    self._pending_command_time = None
-
-                #  real NACK is 0x21 / FrameType.Nack
-                if frame.type == FrameType.Nack:
-                    self.nack_count += 1
-
-                self._dispatch(frame)
-                return frame
-
-        return None
+        self._dispatch(frame)
+        return frame
 
     def _dispatch(self, frame: Frame) -> None:
         # route each frame type to its model per spec 7.2 / FR-GS-07.
