@@ -24,10 +24,6 @@ inline constexpr uint8_t kLogFileCount = 4;        ///< Number of log files in c
 inline constexpr uint16_t kRecordsPerFile = 256;   ///< Maximum number of records stored per log file
 inline constexpr uint32_t kEraseMagic = 0xDEADC0DEu; ///< Authorization code for erasing logs
 
-/// Consecutive storage failures (mount or write) tolerated before entering
-/// Fault (spec FR-FW-14, Appendix A: "Maximum consecutive write failures").
-/// Single source of truth: also used as WriteFailurePolicy's default and as
-/// the Fault-state remount-retry-then-reboot limit in Orchestrator.
 inline constexpr uint8_t kMaxWriteFails = 3;
 
 inline constexpr uint32_t kChirpFreqHz = 2000;    // Buzzer chirp frequency on entering Recording
