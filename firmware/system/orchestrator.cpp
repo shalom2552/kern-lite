@@ -188,9 +188,6 @@ void Orchestrator::recoverFromFault()
         m_faultMountFailCount = 0;
         m_writeFailPolicy.reset();
         m_sm.process(kern::recorder::Event::FaultCleared);
-        // Spec 12.2: Fault -> Recording (recovery succeeded) shall send
-        // STATUS immediately so the GS sees the resume without waiting up
-        // to 5s for the next heartbeat.
         m_handler.sendStatus();
         return;
     }
@@ -209,8 +206,6 @@ bool Orchestrator::ensureMounted()
     if (m_box.mount() != kern::storage::StorageStatus::Ok) {
         if (m_writeFailPolicy.recordFailure()) {
             m_sm.process(kern::recorder::Event::SdFault);
-            // Spec 12.2: Recording -> Fault (3rd consecutive failure) shall
-            // send STATUS immediately, not wait for the 5s heartbeat.
             m_handler.sendStatus();
         }
         return false;
@@ -234,8 +229,6 @@ void Orchestrator::storeLatestRecord()
         m_writeFailPolicy.reset();
     } else if (m_writeFailPolicy.recordFailure()) {
         m_sm.process(kern::recorder::Event::SdFault);
-        // Spec 12.2: same immediate-STATUS requirement as the mount-failure
-        // path in ensureMounted().
         m_handler.sendStatus();
     }
 }
