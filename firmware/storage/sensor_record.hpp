@@ -14,11 +14,11 @@ struct SensorRecord {
     uint32_t timestamp; ///< Epoch timestamp in seconds.
     uint16_t ms;        ///< Millisecond component of timestamp.
     uint16_t seq;       ///< Sequence number incremented for each record.
-    int16_t lm35_c;     ///< Temperature reading from LM35 (*100 scaled value).
-    int16_t dht_temp_c; ///< Temperature reading from DHT11 (*10 scaled value).
-    uint16_t dht_hum;   ///< Humidity reading from DHT11 (*10 scaled value).
-    uint16_t light;     ///< Normalized light sensor reading (*1000 scaled value).
-    uint16_t pot;       ///< Normalized potentiometer reading (*1000 scaled value).
+    int16_t lm35_c;     ///< Temperature reading from LM35 (degrees C x10).
+    int16_t dht_temp_c; ///< Temperature reading from DHT11 (degrees C x10).
+    uint16_t dht_hum;   ///< Humidity reading from DHT11 (%RH x10).
+    uint16_t light;     ///< Normalized light sensor reading (x65535).
+    uint16_t pot;       ///< Normalized potentiometer reading (x65535).
     uint8_t alert_bits; ///< Bitmask representing active DSP alerts.
     uint8_t state;      ///< Current recorder state representation.
     uint8_t fault_bits; ///< Bitmask representing sensor faults.
