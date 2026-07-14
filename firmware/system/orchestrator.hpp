@@ -143,9 +143,11 @@ private:
     uint16_t m_recSeq = 0;
     uint16_t m_lastStoredSeq = 0;
     uint32_t m_sensorTick = 0;
-    WriteFailurePolicy m_writeFailPolicy{};
+    WriteFailurePolicy m_writeFailPolicy{config::kMaxWriteFails};
     uint8_t m_faultMountFailCount = 0;
     bool m_faultBlinkOn = false;
+    volatile uint8_t m_lastFaultBits = 0;
+    bool m_degradedBlinkOn = false;
     recorder::State m_prevState = recorder::State::Idle;
     bool m_chirpActive = false;
     uint32_t m_chirpStartMs = 0;
