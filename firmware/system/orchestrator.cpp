@@ -61,6 +61,13 @@ void Orchestrator::init()
     m_link.init();
     m_buttons.init();
     m_handler.bind(m_sm, m_box);
+
+    // FR-FW-01: mount/recover storage on cold boot, before entering Idle.
+    // Without this, sd_mounted stays 0 in STATUS and CMD_REPLAY NACKs
+    // StorageError until the first START -- even when the card holds valid
+    // data from a prior session. ensureMounted() in the Storage task still
+    // owns ongoing retry/escalation to Fault (FR-FW-14) if this fails.
+    m_box.mount();
 }
 
 void Orchestrator::sampleAnalogSensors(kern::storage::SensorRecord& rec,
@@ -145,6 +152,7 @@ kern::storage::SensorRecord Orchestrator::assembleRecord()
         offsetof(SensorRecord, crc32)
     );
 
+    m_lastFaultBits = faultBits;
     ++m_sensorTick;
     return rec;
 }
@@ -186,6 +194,10 @@ void Orchestrator::recoverFromFault()
         m_faultMountFailCount = 0;
         m_writeFailPolicy.reset();
         m_sm.process(kern::recorder::Event::FaultCleared);
+        // Spec 12.2: Fault -> Recording (recovery succeeded) shall send
+        // STATUS immediately so the GS sees the resume without waiting up
+        // to 5s for the next heartbeat.
+        m_handler.sendStatus();
         return;
     }
 
@@ -203,6 +215,9 @@ bool Orchestrator::ensureMounted()
     if (m_box.mount() != kern::storage::StorageStatus::Ok) {
         if (m_writeFailPolicy.recordFailure()) {
             m_sm.process(kern::recorder::Event::SdFault);
+            // Spec 12.2: Recording -> Fault (3rd consecutive failure) shall
+            // send STATUS immediately, not wait for the 5s heartbeat.
+            m_handler.sendStatus();
         }
         return false;
     }
@@ -225,6 +240,9 @@ void Orchestrator::storeLatestRecord()
         m_writeFailPolicy.reset();
     } else if (m_writeFailPolicy.recordFailure()) {
         m_sm.process(kern::recorder::Event::SdFault);
+        // Spec 12.2: same immediate-STATUS requirement as the mount-failure
+        // path in ensureMounted().
+        m_handler.sendStatus();
     }
 }
 
@@ -271,7 +289,18 @@ void Orchestrator::updateStateLeds()
     hal::gpio::clear(board::LED2_RED);
 
     if (m_sm.isLogging()) {
-        hal::gpio::set(board::RGB_G);
+        if (m_lastFaultBits != 0u) {
+            // Degraded-but-recording (spec 6.3): blink green instead of solid.
+            m_degradedBlinkOn = !m_degradedBlinkOn;
+            if (m_degradedBlinkOn) {
+                hal::gpio::set(board::RGB_G);
+            } else {
+                hal::gpio::clear(board::RGB_G);
+            }
+        } else {
+            m_degradedBlinkOn = false;
+            hal::gpio::set(board::RGB_G);
+        }
         hal::gpio::clear(board::RGB_R);
         hal::gpio::clear(board::RGB_B);
         return;
