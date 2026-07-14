@@ -277,7 +277,6 @@ void Orchestrator::updateStateLeds()
 
     if (m_sm.isLogging()) {
         if (m_lastFaultBits != 0u) {
-            // Degraded-but-recording (spec 6.3): blink green instead of solid.
             m_degradedBlinkOn = !m_degradedBlinkOn;
             if (m_degradedBlinkOn) {
                 hal::gpio::set(board::RGB_G);
