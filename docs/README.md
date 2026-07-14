@@ -11,8 +11,8 @@ MCU - STM32L476RG.
 - [x] Phase 2 — UART round-trip (STATUS/ACK)
 - [x] Phase 3 — Sensors, DSP, live SensorRecord stream
 - [x] Phase 4 — Circular file storage, replay, recovery
-- [ ] Phase 5 — State machine, full command set
-- [ ] Phase 6 — Ground station analytics
+- [x] Phase 5 — State machine, full command set
+- [x] Phase 6 — Ground station analytics
 - [ ] Phase 7 — Fault injection, validation, demo
 
 ---

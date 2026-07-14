@@ -25,7 +25,6 @@ namespace kern::system {
 
 namespace {
 
-constexpr uint8_t MAX_WRITE_FAILS = 3;
 constexpr uint32_t STATUS_HEARTBEAT_MS = 5000;
 constexpr uint32_t DHT_SAMPLE_EVERY_N_TICKS = 20;
 
@@ -61,6 +60,8 @@ void Orchestrator::init()
     m_link.init();
     m_buttons.init();
     m_handler.bind(m_sm, m_box);
+
+    m_box.mount();
 }
 
 void Orchestrator::sampleAnalogSensors(kern::storage::SensorRecord& rec,
@@ -145,6 +146,7 @@ kern::storage::SensorRecord Orchestrator::assembleRecord()
         offsetof(SensorRecord, crc32)
     );
 
+    m_lastFaultBits = faultBits;
     ++m_sensorTick;
     return rec;
 }
@@ -186,10 +188,11 @@ void Orchestrator::recoverFromFault()
         m_faultMountFailCount = 0;
         m_writeFailPolicy.reset();
         m_sm.process(kern::recorder::Event::FaultCleared);
+        m_handler.sendStatus();
         return;
     }
 
-    if (++m_faultMountFailCount >= MAX_WRITE_FAILS) {
+    if (++m_faultMountFailCount >= kern::config::kMaxWriteFails) {
         NVIC_SystemReset();
     }
 }
@@ -203,6 +206,7 @@ bool Orchestrator::ensureMounted()
     if (m_box.mount() != kern::storage::StorageStatus::Ok) {
         if (m_writeFailPolicy.recordFailure()) {
             m_sm.process(kern::recorder::Event::SdFault);
+            m_handler.sendStatus();
         }
         return false;
     }
@@ -225,6 +229,7 @@ void Orchestrator::storeLatestRecord()
         m_writeFailPolicy.reset();
     } else if (m_writeFailPolicy.recordFailure()) {
         m_sm.process(kern::recorder::Event::SdFault);
+        m_handler.sendStatus();
     }
 }
 
@@ -271,7 +276,17 @@ void Orchestrator::updateStateLeds()
     hal::gpio::clear(board::LED2_RED);
 
     if (m_sm.isLogging()) {
-        hal::gpio::set(board::RGB_G);
+        if (m_lastFaultBits != 0u) {
+            m_degradedBlinkOn = !m_degradedBlinkOn;
+            if (m_degradedBlinkOn) {
+                hal::gpio::set(board::RGB_G);
+            } else {
+                hal::gpio::clear(board::RGB_G);
+            }
+        } else {
+            m_degradedBlinkOn = false;
+            hal::gpio::set(board::RGB_G);
+        }
         hal::gpio::clear(board::RGB_R);
         hal::gpio::clear(board::RGB_B);
         return;
