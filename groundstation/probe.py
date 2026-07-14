@@ -314,10 +314,14 @@ class GateProbe:
 
     def check_nack_bad_command(self) -> None:
         print("\n== Link: unknown command 0xFF -> NACK BadCommand ==")
-        self.link.record_command(0xFF)
-        self.monitor.on_command()
-        self.link.send_frame(Frame(0xFF, b""))
-        frame = self._wait_for_reply(2.0, expect={FrameType.Nack})
+        frame = None
+        for _ in range(2):
+            self.link.record_command(0xFF)
+            self.monitor.on_command()
+            self.link.send_frame(Frame(0xFF, b""))
+            frame = self._wait_for_reply(2.0, expect={FrameType.Nack})
+            if frame is not None:
+                break
 
         if (frame is not None and frame.type == FrameType.Nack
                 and frame.payload and frame.payload[0] == NackCode.BadCommand):
@@ -681,6 +685,8 @@ class GateProbe:
         try:
             print(f"Connecting to {self.args.port} @ {self.args.baud}...")
             self.link.connect(self.args.port, self.args.baud)
+            self.link.ser.reset_input_buffer()
+            self.link.decoder.reset()
         except serial.SerialException as e:
             print(f"Could not open port {self.args.port}: {e}")
             self.report.add(FAIL, "Serial connect", str(e))
