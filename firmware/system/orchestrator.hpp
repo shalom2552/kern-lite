@@ -143,7 +143,7 @@ private:
     uint16_t m_recSeq = 0;
     uint16_t m_lastStoredSeq = 0;
     uint32_t m_sensorTick = 0;
-    WriteFailurePolicy m_writeFailPolicy{};
+    WriteFailurePolicy m_writeFailPolicy{config::kMaxWriteFails};
     uint8_t m_faultMountFailCount = 0;
     bool m_faultBlinkOn = false;
     // Spec 6.3: Recording LED must blink (not stay solid) while the latest

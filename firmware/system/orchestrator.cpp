@@ -25,7 +25,6 @@ namespace kern::system {
 
 namespace {
 
-constexpr uint8_t MAX_WRITE_FAILS = 3;
 constexpr uint32_t STATUS_HEARTBEAT_MS = 5000;
 constexpr uint32_t DHT_SAMPLE_EVERY_N_TICKS = 20;
 
@@ -201,7 +200,7 @@ void Orchestrator::recoverFromFault()
         return;
     }
 
-    if (++m_faultMountFailCount >= MAX_WRITE_FAILS) {
+    if (++m_faultMountFailCount >= kern::config::kMaxWriteFails) {
         NVIC_SystemReset();
     }
 }
