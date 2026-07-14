@@ -46,6 +46,15 @@ FAULT_POT_STUCK = 0x10  # Potentiometer value unchanged (likely stuck)
 # Sensor channel names, used as keys in telemetry aggregation
 CHANNELS = ("lm35", "dht_temp", "dht_hum", "light", "pot")
 
+# Alert bit masks per channel as (high_bit, low_bit), from spec 9.4
+ALERT_MASKS = {
+    "lm35": (0x01, 0x02),
+    "light": (0x04, 0x08),
+    "pot": (0x10, 0x20),
+    "dht_temp": (0x40, 0x00),  # spec defines only DHT_TEMP_HI
+    "dht_hum": (0x80, 0x00),   # spec defines only DHT_HUM_HI
+}
+
 
 @dataclass
 class SensorRecord:
@@ -124,6 +133,17 @@ class SensorRecord:
             return False
         expected = crc32(self.raw[0:28])  # CRC computed over first 28 bytes
         return expected == self.crc32
+
+
+def channel_values(record: "SensorRecord") -> dict[str, float]:
+    """Per-channel display-unit values of a record, keyed by CHANNELS."""
+    return {
+        "lm35": record.lm35_celsius,          # Degrees Celsius
+        "dht_temp": record.dht_temp_celsius,  # Degrees Celsius
+        "dht_hum": record.dht_humidity,       # Percent
+        "light": record.light_normalized,     # Normalized [0.0, 1.0]
+        "pot": record.pot_normalized,         # Normalized [0.0, 1.0]
+    }
 
 
 class RecordDecoder:
@@ -230,16 +250,7 @@ class TelemetryModel:
         channels: Dict mapping channel name to _ChannelRunning statistics
     """
 
-    # Alert bit masks per channel, from spec 9.4
-    # Format: (high_threshold_bit, low_threshold_bit)
-    # When set in alert_bits, indicates the reading crossed a threshold
-    _ALERT_MASKS = {
-        "lm35": (0x01, 0x02),      # 0x01=high temp, 0x02=low temp
-        "light": (0x04, 0x08),     # 0x04=high, 0x08=low
-        "pot": (0x10, 0x20),       # 0x10=high, 0x20=low
-        "dht_temp": (0x40, 0x00),  # 0x40=high; spec defines only DHT_TEMP_HI
-        "dht_hum": (0x80, 0x00),   # 0x80=high; spec defines only DHT_HUM_HI
-    }
+    _ALERT_MASKS = ALERT_MASKS
 
     def __init__(self) -> None:
         """Initialize an empty telemetry session."""
@@ -264,17 +275,8 @@ class TelemetryModel:
         wt = wall_time if wall_time is not None else time.time()
         self.records.append(record)
 
-        # Extract and convert sensor values to display units
-        values = {
-            "lm35": record.lm35_celsius,      # Degrees Celsius
-            "dht_temp": record.dht_temp_celsius,  # Degrees Celsius
-            "dht_hum": record.dht_humidity,   # Percent
-            "light": record.light_normalized,  # Normalized [0.0, 1.0]
-            "pot": record.pot_normalized,     # Normalized [0.0, 1.0]
-        }
-        
         # Update statistics for each channel
-        for name, value in values.items():
+        for name, value in channel_values(record).items():
             hi_mask, lo_mask = self._ALERT_MASKS[name]
             # Check if either high or low alert bit is set for this channel
             alert = bool(record.alert_bits & (hi_mask | lo_mask))
