@@ -2,6 +2,8 @@
 Analytics tests for groundstation.stats.ChannelStats.
 
 file: tests/gs/test_stats.py
+author: Smallejoo
+date: 2026-14-07
 """
 from __future__ import annotations
 import inspect

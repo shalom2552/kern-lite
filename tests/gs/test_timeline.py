@@ -2,6 +2,8 @@
 Analytics tests for groundstation.timeline.StateTimeline.
 
 file: tests/gs/test_timeline.py
+author: Smallejoo
+date: 2026-14-07
 """
 from __future__ import annotations
 from pathlib import Path

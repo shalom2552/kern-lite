@@ -2,6 +2,8 @@
 Analytics tests for groundstation.link_quality.LinkQualityMonitor.
 
 file: tests/gs/test_link_quality.py
+author: Smallejoo
+date: 2026-14-07
 """
 from __future__ import annotations
 import pytest
