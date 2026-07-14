@@ -4,6 +4,7 @@
 Debug/
 Release/
 build/
+sessions/
 *.launch
 *.o
 
