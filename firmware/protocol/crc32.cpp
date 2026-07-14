@@ -13,22 +13,22 @@
 
 namespace kern::protocol {
 
-constexpr uint32_t POLY = 0xEDB88320;
+constexpr uint32_t POLY = 0xEDB88320; // CRC polynomial for CRC-32
 
 /* create lookup table for the polynomial of crc32 0xEDB88320 in compile time */
 /* compute crc output for every byte by the byte entry */
 constexpr uint32_t computeEntry(uint32_t byte)
 {
     uint32_t crc = byte;
-
     for (int i = 0; i < 8; ++i)
     {
-        if (crc & 1)
+        if (crc & 1) {
             crc = (crc >> 1) ^ POLY;
-        else
+        }
+        else {
             crc >>= 1;
+        }
     }
-
     return crc;
 }
 
@@ -75,4 +75,4 @@ uint32_t crc32Finalize(uint32_t crc)
 	return crc ^ 0xFFFFFFFFu;
 }
 
-}	// namespace kern::protocol
+} // namespace kern::protocol
