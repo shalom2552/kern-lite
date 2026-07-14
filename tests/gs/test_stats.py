@@ -4,10 +4,8 @@ Analytics tests for groundstation.stats.ChannelStats.
 file: tests/gs/test_stats.py
 """
 from __future__ import annotations
-
 import inspect
 import math
-
 import pytest
 
 from groundstation.stats import ChannelStats
@@ -73,3 +71,4 @@ def test_channel_stats_alert_timing_counts_previous_active_interval():
 
     assert stats.alert_activations == 1
     assert stats.time_in_alert_s == pytest.approx(2.0)
+

@@ -4,9 +4,7 @@ Analytics tests for groundstation.timeline.StateTimeline.
 file: tests/gs/test_timeline.py
 """
 from __future__ import annotations
-
 from pathlib import Path
-
 from groundstation.timeline import StateTimeline
 
 
@@ -47,3 +45,4 @@ def test_timeline_records_reboot_event_at_expected_position():
     else:
         assert reboot.seq == 300
         assert reboot.wall_time == 60.0
+
