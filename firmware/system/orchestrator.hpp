@@ -146,10 +146,6 @@ private:
     WriteFailurePolicy m_writeFailPolicy{config::kMaxWriteFails};
     uint8_t m_faultMountFailCount = 0;
     bool m_faultBlinkOn = false;
-    // Spec 6.3: Recording LED must blink (not stay solid) while the latest
-    // record carries fault_bits, distinguishing degraded-but-recording from
-    // nominal. Updated in assembleRecord(), read in updateStateLeds() --
-    // single-byte read/write on Cortex-M, no lock needed.
     volatile uint8_t m_lastFaultBits = 0;
     bool m_degradedBlinkOn = false;
     recorder::State m_prevState = recorder::State::Idle;
