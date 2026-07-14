@@ -61,11 +61,6 @@ void Orchestrator::init()
     m_buttons.init();
     m_handler.bind(m_sm, m_box);
 
-    // FR-FW-01: mount/recover storage on cold boot, before entering Idle.
-    // Without this, sd_mounted stays 0 in STATUS and CMD_REPLAY NACKs
-    // StorageError until the first START -- even when the card holds valid
-    // data from a prior session. ensureMounted() in the Storage task still
-    // owns ongoing retry/escalation to Fault (FR-FW-14) if this fails.
     m_box.mount();
 }
 
