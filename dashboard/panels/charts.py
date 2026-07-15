@@ -28,15 +28,18 @@ class ChartsPanel(ttk.Frame):
         self.rowconfigure(1, weight=1)
         self.columnconfigure(0, weight=1)
 
+        self._compact: bool | None = None
         toggles = ttk.Frame(self, style="Panel.TFrame")
         toggles.grid(row=0, column=0, sticky="w", pady=(0, 4))
         self.toggle_vars: dict[str, tk.BooleanVar] = {}
-        for i, channel in enumerate(CHANNELS):
+        self._toggle_buttons: list[ttk.Checkbutton] = []
+        for channel in CHANNELS:
             var = tk.BooleanVar(value=True)
             self.toggle_vars[channel] = var
-            ttk.Checkbutton(toggles, text=theme.CHANNEL_LABELS[channel], variable=var,
-                            command=lambda c=channel: self._toggle(c)).grid(
-                row=0, column=i, sticky="w", padx=(0, 12))
+            self._toggle_buttons.append(
+                ttk.Checkbutton(toggles, text=theme.CHANNEL_LABELS[channel], variable=var,
+                                command=lambda c=channel: self._toggle(c)))
+        self.set_compact(False)
 
         self.figure = Figure(figsize=(6, 4), dpi=100, facecolor=theme.COLOR_BG)
         axes = self.figure.subplots(len(CHANNELS), 1, sharex=True)
@@ -50,6 +53,16 @@ class ChartsPanel(ttk.Frame):
         self.canvas.get_tk_widget().grid(row=1, column=0, sticky="nsew")
 
         self._drawn_count = -1
+
+    def set_compact(self, compact: bool) -> None:
+        """Toggles in one row on wide screens, two rows on narrow ones."""
+        if compact == self._compact:
+            return
+        self._compact = compact
+        per_row = 3 if compact else len(self._toggle_buttons)
+        for i, button in enumerate(self._toggle_buttons):
+            button.grid(row=i // per_row, column=i % per_row,
+                        sticky="w", padx=(0, 12))
 
     def _style_axis(self, ax) -> None:
         ax.set_facecolor(theme.COLOR_INPUT)

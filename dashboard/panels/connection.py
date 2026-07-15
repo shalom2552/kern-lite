@@ -30,23 +30,47 @@ class ConnectionPanel(ttk.Frame):
         self._on_connect = on_connect
         self._on_disconnect = on_disconnect
 
-        ttk.Label(self, text="Port").grid(row=0, column=0, padx=(0, 6))
+        self._compact: bool | None = None
+
+        self._port_label = ttk.Label(self, text="Port")
         self.port_var = tk.StringVar()
         self.port_combo = ttk.Combobox(self, textvariable=self.port_var, width=24)
-        self.port_combo.grid(row=0, column=1)
-        ttk.Button(self, text="Refresh", command=self.refresh_ports).grid(row=0, column=2, padx=6)
+        self._refresh_btn = ttk.Button(self, text="Refresh", command=self.refresh_ports)
 
         self.connect_btn = ttk.Button(self, text="Connect", style="Accent.TButton",
                                       command=self._connect)
-        self.connect_btn.grid(row=0, column=3, padx=(12, 4))
         self.disconnect_btn = ttk.Button(self, text="Disconnect", command=self._on_disconnect)
-        self.disconnect_btn.grid(row=0, column=4, padx=4)
 
         self.badge_var = tk.StringVar(value="Disconnected")
         self.badge = ttk.Label(self, textvariable=self.badge_var, style="PillBad.TLabel")
-        self.badge.grid(row=0, column=5, padx=(12, 0))
 
+        self.set_compact(False)
         self.refresh_ports()
+
+    def set_compact(self, compact: bool) -> None:
+        """One row on wide screens, two rows on narrow ones."""
+        if compact == self._compact:
+            return
+        self._compact = compact
+        for widget in (self._port_label, self.port_combo, self._refresh_btn,
+                       self.connect_btn, self.disconnect_btn, self.badge):
+            widget.grid_forget()
+        if compact:
+            self.port_combo.configure(width=14)
+            self._port_label.grid(row=0, column=0, padx=(0, 6), sticky="w")
+            self.port_combo.grid(row=0, column=1, sticky="w")
+            self._refresh_btn.grid(row=0, column=2, padx=6, sticky="w")
+            self.connect_btn.grid(row=1, column=0, pady=(6, 0), sticky="w")
+            self.disconnect_btn.grid(row=1, column=1, pady=(6, 0), sticky="w")
+            self.badge.grid(row=1, column=2, padx=6, pady=(6, 0), sticky="w")
+        else:
+            self.port_combo.configure(width=24)
+            self._port_label.grid(row=0, column=0, padx=(0, 6))
+            self.port_combo.grid(row=0, column=1)
+            self._refresh_btn.grid(row=0, column=2, padx=6)
+            self.connect_btn.grid(row=0, column=3, padx=(12, 4))
+            self.disconnect_btn.grid(row=0, column=4, padx=4)
+            self.badge.grid(row=0, column=5, padx=(12, 0))
 
     def refresh_ports(self) -> None:
         ports: list[str] = []
