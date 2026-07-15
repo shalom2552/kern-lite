@@ -69,6 +69,23 @@ Check Python syntax:
 
 Run all commands from repo root.
 
+### Dashboard
+
+Full operator console (connect, commands, live values, charts, storage ring,
+link quality, events, timeline, session recording/reload, exports):
+```bash
+.venv/bin/python -m dashboard
+```
+Pick the board's serial port and press Connect. Every connect creates a new
+`sessions/<timestamp>/` directory; closing the window or Ctrl+C shuts down
+cleanly and flushes the session files.
+
+To try the dashboard without hardware, run the device simulator and connect
+to the pty path it prints:
+```bash
+.venv/bin/python -m dashboard.sim
+```
+
 ---
 
 ## Pinout

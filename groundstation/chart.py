@@ -53,12 +53,14 @@ class RollingChart:
         self.records.append(record)
         self._prune_markers()
 
-    def state_marker(self, state_change) -> None:
+    def state_marker(self, state_change, seq: int | None = None) -> None:
         """Record a vertical marker for a state change. Accepts a
-        state.Transition (uses session_seq, from_state, to_state)."""
+        state.Transition. `seq` pins the marker to the record-sequence x axis;
+        without it the marker falls back to the transition's session_seq."""
         label = (f"{DeviceStateModel.state_name(state_change.from_state)}->"
                  f"{DeviceStateModel.state_name(state_change.to_state)}")
-        self.state_markers.append((state_change.session_seq, label))
+        x = seq if seq is not None else state_change.session_seq
+        self.state_markers.append((x, label))
 
     def reboot_marker(self, seq: int) -> None:
         """Mark a device reboot at the given sequence number."""
@@ -108,6 +110,11 @@ class RollingChart:
                 ax.fill_between(seqs, 0, 1, where=series["alert"],
                                 transform=ax.get_xaxis_transform(),
                                 color="red", alpha=0.15)
+            
+            if seqs:
+                ax.set_xlim(seqs[0], max(seqs[0] + self.capacity - 1, seqs[-1]))
+            margin = (series["hi"] - series["lo"]) * 0.1
+            ax.set_ylim(series["lo"] - margin, series["hi"] + margin)
 
             for seq, label in self.state_markers:
                 ax.axvline(seq, color="tab:green", linestyle="-", linewidth=1.0)
@@ -123,7 +130,7 @@ class RollingChart:
 
     def _prune_markers(self) -> None:
         """Drop markers that rolled out of the window."""
-        if len(self.records) < self.capacity:
+        if not self.records:
             return
         oldest = self.records[0].seq
         self.state_markers = [m for m in self.state_markers if m[0] >= oldest]
