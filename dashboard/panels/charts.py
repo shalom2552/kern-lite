@@ -77,6 +77,9 @@ class ChartsPanel(ttk.Frame):
         self.controller.chart.toggle_channel(channel)
         self._drawn_count = -1
 
+    def reset(self) -> None:
+        self._drawn_count = -1
+
     def refresh(self) -> None:
         chart = self.controller.chart
         count = self.controller.telemetry.record_count

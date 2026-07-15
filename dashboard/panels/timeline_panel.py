@@ -76,6 +76,9 @@ class TimelinePanel(ttk.Frame):
                                      padx=(0, 10), pady=(10, 0))
             self.log.grid(row=1, column=3, sticky="nsew", pady=(10, 0))
 
+    def reset(self) -> None:
+        self.log.reset()
+
     def refresh(self) -> None:
         self._draw_band()
         self.status.refresh(self.controller.timeline)
@@ -298,6 +301,10 @@ class _LogCard(ttk.Frame):
         scrollbar.grid(row=1, column=1, sticky="ns")
 
         self._rendered = 0
+
+    def reset(self) -> None:
+        self._rendered = 0
+        self.tree.delete(*self.tree.get_children())
 
     def refresh(self, alert_log) -> None:
         entries = alert_log.entries

@@ -149,7 +149,8 @@ class GroundStationApp(tk.Tk):
                   style="Subtitle.TLabel").grid(row=1, column=0, sticky="w")
 
         self.connection = ConnectionPanel(self._header, self.controller,
-                                          self._connect, self._disconnect)
+                                          self._connect, self._disconnect,
+                                          self._reset)
         self.command_panel = CommandPanel(self._header, self.controller)
 
         notebook = ttk.Notebook(self)
@@ -347,6 +348,22 @@ class GroundStationApp(tk.Tk):
     def _disconnect(self) -> None:
         self.controller.disconnect()
         self.title("KERN-LITE Ground Station")
+
+    def _reset(self) -> None:
+        if not messagebox.askyesno(
+                "Reset dashboard",
+                "Clear all records, stats, charts, timeline and alerts, and "
+                "start a fresh session file?\n\nThe serial connection stays up.",
+                parent=self):
+            return
+        session_dir = self.controller.reset()
+        for panel in (*self._live_panels, self.charts, *self._extra_panels):
+            reset = getattr(panel, "reset", None)
+            if callable(reset):
+                reset()
+        if session_dir is not None:
+            self.title(f"KERN-LITE Ground Station - "
+                       f"{self.controller.session.port} - {session_dir}")
 
     # -- session load / export ----------------------------------------------
 

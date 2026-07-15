@@ -24,7 +24,8 @@ BADGE_STYLES = {
 
 
 class ConnectionPanel(ttk.Frame):
-    def __init__(self, parent: tk.Misc, controller, on_connect, on_disconnect) -> None:
+    def __init__(self, parent: tk.Misc, controller, on_connect, on_disconnect,
+                 on_reset) -> None:
         super().__init__(parent, style="Panel.TFrame")
         self.controller = controller
         self._on_connect = on_connect
@@ -40,6 +41,7 @@ class ConnectionPanel(ttk.Frame):
         self.connect_btn = ttk.Button(self, text="Connect", style="Accent.TButton",
                                       command=self._connect)
         self.disconnect_btn = ttk.Button(self, text="Disconnect", command=self._on_disconnect)
+        self.reset_btn = ttk.Button(self, text="Reset", command=on_reset)
 
         self.badge_var = tk.StringVar(value="Disconnected")
         self.badge = ttk.Label(self, textvariable=self.badge_var, style="PillBad.TLabel")
@@ -53,7 +55,8 @@ class ConnectionPanel(ttk.Frame):
             return
         self._compact = compact
         for widget in (self._port_label, self.port_combo, self._refresh_btn,
-                       self.connect_btn, self.disconnect_btn, self.badge):
+                       self.connect_btn, self.disconnect_btn, self.reset_btn,
+                       self.badge):
             widget.grid_forget()
         if compact:
             self.port_combo.configure(width=14)
@@ -62,7 +65,8 @@ class ConnectionPanel(ttk.Frame):
             self._refresh_btn.grid(row=0, column=2, padx=6, sticky="w")
             self.connect_btn.grid(row=1, column=0, pady=(6, 0), sticky="w")
             self.disconnect_btn.grid(row=1, column=1, pady=(6, 0), sticky="w")
-            self.badge.grid(row=1, column=2, padx=6, pady=(6, 0), sticky="w")
+            self.reset_btn.grid(row=1, column=2, padx=6, pady=(6, 0), sticky="w")
+            self.badge.grid(row=1, column=3, padx=6, pady=(6, 0), sticky="w")
         else:
             self.port_combo.configure(width=24)
             self._port_label.grid(row=0, column=0, padx=(0, 6))
@@ -70,7 +74,8 @@ class ConnectionPanel(ttk.Frame):
             self._refresh_btn.grid(row=0, column=2, padx=6)
             self.connect_btn.grid(row=0, column=3, padx=(12, 4))
             self.disconnect_btn.grid(row=0, column=4, padx=4)
-            self.badge.grid(row=0, column=5, padx=(12, 0))
+            self.reset_btn.grid(row=0, column=5, padx=4)
+            self.badge.grid(row=0, column=6, padx=(12, 0))
 
     def refresh_ports(self) -> None:
         ports: list[str] = []

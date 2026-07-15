@@ -188,6 +188,59 @@ class DashboardController:
         self.alert_log.add("GS_EVENT", message="disconnected")
         self._last_conn_state = self.link.connection_state
 
+    def reset(self) -> str | None:
+        """Flush every derived view and counter to a clean slate without
+        dropping the serial link. When connected, rolls a fresh session
+        directory so recorded files and exports start over too. Returns the
+        new session dir, or None if not connected."""
+        now = time.time()
+
+        self.alert_log = AlertLog()
+        self.state_model = DeviceStateModel()
+        self.storage_model = StorageModel()
+        self.integrity = IntegrityChecker()
+        self.quality = LinkQualityMonitor(alert_log=self.alert_log)
+        self.timeline = StateTimeline()
+        self.stats = SessionStats()
+        self.chart = RollingChart()
+        self.telemetry = TelemetryFanout(self.stats, self.chart, self.quality,
+                                         self.alert_log, self.integrity)
+        self.telemetry.link = self.link
+
+        # point the live link's receive path at the fresh models
+        self.link.state_model = self.state_model
+        self.link.storage_model = self.storage_model
+        self.link.telemetry_model = self.telemetry
+        self.link.integrity_checker = self.integrity
+        self.link.alert_log = self.alert_log
+        self.link._last_seq = None
+
+        session_dir = None
+        if self._session_open and self.session.port is not None:
+            self.session.close()
+            session_dir = self.session.on_connect(self.session.port)
+            self.session.records.clear()
+            self.session.wall_times.clear()
+
+        # resync bookkeeping; keep the link's own error counters so their
+        # deltas stay zero and old errors are not replayed into the fresh log
+        self._last_status_poll = 0.0
+        self._seen_transitions = 0
+        self._seen_reboots = self.quality.reboot_count
+        self._last_crc = self.link.crc_error_count
+        self._last_sync = self.link.sync_error_count
+        self._last_nack = self.link.nack_count
+        self._alert_active = {c: False for c in CHANNELS}
+        self._last_conn_state = self.link.connection_state
+
+        self.alert_log.add("GS_EVENT", wall_time=now, message="reset")
+        if self.connected:
+            self.timeline.on_state_change(self.state_model.state,
+                                          self.state_model.state, now,
+                                          self.telemetry.record_count)
+            self.send_status()
+        return session_dir
+
     def shutdown(self) -> None:
         """Idempotent teardown: close the port and session files, and drop the
         alert log and timeline as text next to session.bin."""
