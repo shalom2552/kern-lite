@@ -241,6 +241,41 @@ static void test_meta_crc()
     std::printf("[OK] meta crc\n");
 }
 
+static void test_catchup_stale_meta()
+{
+    freshRoot("catchup");
+
+    // 20 records: meta flushed at 16, slots 16..19 newer than the checkpoint.
+    {
+        CircularLog w;
+        CHECK(w.mount() == StorageStatus::Ok);
+        writeN(w, 1, 20);
+    }
+
+    CircularLog r;
+    CHECK(r.mount() == StorageStatus::Ok);
+    CHECK(r.totalRecords() == 20);
+    CHECK(r.writeIndex() == 20);
+
+    // "Reboot": seq and timestamp restart; write a new generation.
+    writeN(r, 1, 5); // slots 20..24, meta on disk still at the old checkpoint
+
+    CircularLog r2;
+    CHECK(r2.mount() == StorageStatus::Ok);
+    // Catch-up follows the seq chain 17..20 and stops at the generation
+    // boundary. Loss is bounded by META_FLUSH_EVERY_N; gen-1 records intact.
+    CHECK(r2.totalRecords() == 20);
+    CHECK(r2.writeIndex() == 20);
+    CHECK(r2.currentFile() == 0);
+
+    Collector c;
+    CHECK(r2.replayNewest(4, collect, &c) == StorageStatus::Ok);
+    CHECK(c.recs.size() == 4);
+    CHECK(c.recs[0].seq == 17);
+    CHECK(c.recs[3].seq == 20);
+    std::printf("[OK] catch-up stale meta\n");
+}
+
 static void test_recovery_position()
 {
     freshRoot("recover");
@@ -283,6 +318,7 @@ int main()
     test_replay_across_boundary();
     test_erase_bad_magic();
     test_meta_crc();
+    test_catchup_stale_meta();
     test_recovery_position();
 
     if (g_failures == 0) {

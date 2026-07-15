@@ -156,8 +156,9 @@ StorageStatus CircularLog::mountLocked()
             if (recordCrc(rec) != rec.crc32) {
                 break; // no more written records
             }
-            if (havePrev && !newer(rec, prev)) {
-                break; // older record from a previous generation
+            if (havePrev
+                && rec.seq != static_cast<uint16_t>(prev.seq + 1u)) {
+                break; // seq chain broken: true head (uptime can't tell generations apart)
             }
             advanceHead(m_meta);
             ++m_meta.total_records;
