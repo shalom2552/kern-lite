@@ -12,6 +12,9 @@
 #include "../system/config.hpp"
 #include "sensor_record.hpp"
 
+#include "FreeRTOS.h"
+#include "semphr.h"
+
 #include <cstdint>
 
 namespace kern::storage {
@@ -137,6 +140,24 @@ public:
     bool isMounted() const;
 
 private:
+    friend class LogGuard;
+
+    /*
+     * @brief Mount body shared by mount/remount/eraseAll; caller must hold the mutex.
+     * @return StorageStatus result.
+     */
+    StorageStatus mountLocked();
+
+    /*
+     * @brief Create the mutex on first use, then take it. Paired with unlock().
+     */
+    void lock();
+
+    /*
+     * @brief Release the mutex taken by lock().
+     */
+    void unlock();
+
     /*
      * @brief Read metadata from META.BIN and verify its integrity.
      * @return StorageStatus result.
@@ -175,6 +196,11 @@ private:
     bool m_filesOpen[LOG_FILE_COUNT]{};
     LogMeta m_meta{};
     bool m_mounted = false;
+
+    // Serializes writeRecord/replayNewest/eraseAll/flushMeta across tasks;
+    // FatFs re-entrancy only locks single f_* calls, not seek+write sequences.
+    StaticSemaphore_t m_mutexStorage{};
+    SemaphoreHandle_t m_mutex = nullptr;
 };
 
 } // namespace kern::storage

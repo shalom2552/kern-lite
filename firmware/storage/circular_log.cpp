@@ -79,7 +79,47 @@ static void advanceHead(LogMeta& meta)
     }
 }
 
+/*
+ * Scoped lock so every early return in the public methods releases the mutex.
+ */
+class LogGuard {
+public:
+    explicit LogGuard(CircularLog& log)
+        : m_log(log)
+    {
+        m_log.lock();
+    }
+
+    ~LogGuard() { m_log.unlock(); }
+
+    LogGuard(const LogGuard&) = delete;
+    LogGuard& operator=(const LogGuard&) = delete;
+
+private:
+    CircularLog& m_log;
+};
+
+void CircularLog::lock()
+{
+    // First call happens before the scheduler starts, so lazy creation is safe.
+    if (m_mutex == nullptr) {
+        m_mutex = xSemaphoreCreateMutexStatic(&m_mutexStorage);
+    }
+    xSemaphoreTake(m_mutex, portMAX_DELAY);
+}
+
+void CircularLog::unlock()
+{
+    xSemaphoreGive(m_mutex);
+}
+
 StorageStatus CircularLog::mount()
+{
+    LogGuard guard(*this);
+    return mountLocked();
+}
+
+StorageStatus CircularLog::mountLocked()
 {
     if (f_mount(&m_fatfs, "0:", 1) != FR_OK) {
         return StorageStatus::IoError;
@@ -149,6 +189,8 @@ StorageStatus CircularLog::mount()
 
 StorageStatus CircularLog::remount()
 {
+    LogGuard guard(*this);
+
     for (uint8_t i = 0; i < LOG_FILE_COUNT; ++i) {
         if (m_filesOpen[i]) {
             f_close(&m_files[i]);
@@ -157,11 +199,13 @@ StorageStatus CircularLog::remount()
     }
 
     m_mounted = false;
-    return mount();
+    return mountLocked();
 }
 
 StorageStatus CircularLog::writeRecord(const SensorRecord& r)
 {
+    LogGuard guard(*this);
+
     if (!m_mounted) {
         return StorageStatus::NotMounted;
     }
@@ -191,6 +235,8 @@ StorageStatus CircularLog::writeRecord(const SensorRecord& r)
 
 StorageStatus CircularLog::replayNewest(uint32_t n, RecordCb cb, void* ctx)
 {
+    LogGuard guard(*this);
+
     if (!m_mounted) {
         return StorageStatus::NotMounted;
     }
@@ -231,6 +277,8 @@ StorageStatus CircularLog::eraseAll(uint32_t magic)
         return StorageStatus::BadMagic;
     }
 
+    LogGuard guard(*this);
+
     for (uint8_t i = 0; i < LOG_FILE_COUNT; ++i) {
         if (m_filesOpen[i]) {
             f_close(&m_files[i]);
@@ -243,11 +291,13 @@ StorageStatus CircularLog::eraseAll(uint32_t magic)
     f_unlink(kMetaPath);
 
     m_mounted = false;
-    return mount();
+    return mountLocked();
 }
 
 StorageStatus CircularLog::flushMeta()
 {
+    LogGuard guard(*this);
+
     if (!m_mounted) {
         return StorageStatus::NotMounted;
     }
