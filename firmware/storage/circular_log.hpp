@@ -1,46 +1,43 @@
 /*
-CircularLog: multi-file ring buffer over FatFs with metadata persistence,
-crash recovery, and replay.
-
-file: firmware/storage/circular_log.hpp
-author: shalom2552
-date: 2026-07-07
-*/
-
+ * CircularLog: multi-file ring buffer over FatFs with metadata persistence,
+ * crash recovery, and replay.
+ *
+ * file: firmware/storage/circular_log.hpp
+ * author: shalom2552
+ * date: 2026-07-07
+ */
 #pragma once
 
-#include "sensor_record.hpp"
 #include "ff.h"
+#include "../system/config.hpp"
+#include "sensor_record.hpp"
+
+#include "FreeRTOS.h"
+#include "semphr.h"
 
 #include <cstdint>
 
 namespace kern::storage {
 
-inline constexpr uint8_t LOG_FILE_COUNT = 4;
-inline constexpr uint16_t RECORDS_PER_FILE = 256;
-inline constexpr uint16_t META_FLUSH_EVERY_N = 16;
-inline constexpr uint32_t ERASE_MAGIC = 0xDEADC0DEu;
-inline constexpr uint32_t META_MAGIC = 0x4C4F4700u; // "LOG\0"
-inline constexpr uint32_t META_VERSION = 1u;
+inline constexpr uint8_t  LOG_FILE_COUNT = config::kLogFileCount;
+inline constexpr uint16_t RECORDS_PER_FILE = config::kRecordsPerFile;
+inline constexpr uint16_t META_FLUSH_EVERY_N = config::kMetaFlushEveryN;
+inline constexpr uint32_t ERASE_MAGIC = config::kEraseMagic;
+inline constexpr uint32_t META_MAGIC = config::kMetaMagic;
+inline constexpr uint32_t META_VERSION = config::kMetaVersion;
 
-#pragma pack(push, 1)
 /*
  * @brief Metadata tracking log file indices, write pointers, and statistics.
- * 
  * Stored in META.BIN on the SD card to recover state across boots.
  */
+#pragma pack(push, 1)
 struct LogMeta {
-    // Stored in META.BIN.
     uint32_t magic;
     uint32_t version;
-
-    // how many files we use to save data
     uint8_t file_count;
     uint16_t records_per_file;
     uint8_t current_file;
     uint16_t write_index;
-
-    // how much times did we start from the beginning and overwrite old records
     uint32_t wrap_count;
     uint32_t total_records;
     uint8_t reserved[10]; // pad to 32 bytes before CRC
@@ -53,11 +50,16 @@ static_assert(sizeof(LogMeta) == 36, "LogMeta size");
 /*
  * @brief Storage operation results.
  */
-enum class StorageStatus : uint8_t { Ok, IoError, Corrupt, Full, BadMagic, NotMounted };
+enum class StorageStatus : uint8_t {
+    Ok,
+    IoError,
+    Corrupt,
+    Full,
+    BadMagic,
+    NotMounted
+};
 
-/*
- * @brief Callback function type invoked for each record during log replay.
- */
+// Callback function type invoked for each record during log replay.
 using RecordCb = bool (*)(const SensorRecord&, void* ctx);
 
 /*
@@ -138,6 +140,24 @@ public:
     bool isMounted() const;
 
 private:
+    friend class LogGuard;
+
+    /*
+     * @brief Mount body shared by mount/remount/eraseAll; caller must hold the mutex.
+     * @return StorageStatus result.
+     */
+    StorageStatus mountLocked();
+
+    /*
+     * @brief Create the mutex on first use, then take it. Paired with unlock().
+     */
+    void lock();
+
+    /*
+     * @brief Release the mutex taken by lock().
+     */
+    void unlock();
+
     /*
      * @brief Read metadata from META.BIN and verify its integrity.
      * @return StorageStatus result.
@@ -170,11 +190,18 @@ private:
      */
     uint32_t recordCrc(const SensorRecord& r);
 
+private:
     FATFS m_fatfs{};
     FIL m_files[LOG_FILE_COUNT]{};
     bool m_filesOpen[LOG_FILE_COUNT]{};
     LogMeta m_meta{};
     bool m_mounted = false;
+
+    // Serializes writeRecord/replayNewest/eraseAll/flushMeta across tasks;
+    // FatFs re-entrancy only locks single f_* calls, not seek+write sequences.
+    StaticSemaphore_t m_mutexStorage{};
+    SemaphoreHandle_t m_mutex = nullptr;
 };
 
 } // namespace kern::storage
+
