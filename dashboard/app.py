@@ -260,7 +260,12 @@ class GroundStationApp(tk.Tk):
             self.events.grid(row=2, column=1, sticky="nsew", pady=(14, 0))
 
     def _on_mousewheel(self, event) -> None:
-        widget = self.winfo_containing(event.x_root, event.y_root)
+        try:
+            widget = self.winfo_containing(event.x_root, event.y_root)
+        except (KeyError, tk.TclError):
+            # Pointer over a Tk-internal window (e.g. an open combobox
+            # popdown) that Tkinter has no widget object for.
+            return
         while widget is not None and not isinstance(widget, _ScrollHost):
             if isinstance(widget, (ttk.Treeview, tk.Listbox, tk.Text)):
                 return  # let the widget consume its own scrolling
