@@ -239,13 +239,18 @@ class SerialLink:
 
         wall_time = time.time()
 
+        record_ok = True
         if self.integrity_checker is not None:
-            # Frame CRC already passed (decoder wouldn't have returned a
-            # Frame otherwise); this re-checks the record-level CRC and
-            # logs STORAGE_CORRUPTION_WARNING internally if it fails.
-            self.integrity_checker.check_frame(frame)
+            # Frame CRC already passed; this re-checks the record-level CRC.
+            record_ok = self.integrity_checker.check_frame(frame)
 
         record = RecordDecoder.decode(frame.payload)
+
+        if not record_ok and self.alert_log is not None:
+            # report the corrupt record but keep streaming the surrounding ones
+            self.alert_log.add("STORAGE_CORRUPTION_WARNING",
+                               session_seq=record.seq, wall_time=wall_time,
+                               message="stored record failed CRC")
 
         if self.integrity_checker is not None:
             self.integrity_checker.check_sequence(record, self._last_seq)

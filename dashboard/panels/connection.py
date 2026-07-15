@@ -75,7 +75,10 @@ class ConnectionPanel(ttk.Frame):
     def refresh_ports(self) -> None:
         ports: list[str] = []
         if list_ports is not None:
-            ports = [p.device for p in list_ports.comports()]
+            all_ports = list(list_ports.comports())
+            # USB serial adapters have a VID; motherboard ttyS* ports don't
+            usb = [p.device for p in all_ports if p.vid is not None]
+            ports = usb or [p.device for p in all_ports]
         self.port_combo["values"] = ports
         if ports and not self.port_var.get():
             self.port_var.set(ports[0])

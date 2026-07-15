@@ -63,6 +63,7 @@ class TelemetryFanout:
         self.record_count = 0
         self.history: deque[RecordRow] = deque(maxlen=RECORD_HISTORY)
         self._last_seq: int | None = None
+        self._last_uptime_ms: int | None = None
         self.link: SerialLink | None = None
 
     def ingest(self, record: SensorRecord, wall_time: float | None = None) -> None:
@@ -70,12 +71,18 @@ class TelemetryFanout:
 
         in_replay = self.link is not None and self.link._in_replay
         if not in_replay:
-            gap = self.integrity.check_sequence(record, self._last_seq)
-            if gap:
-                self.chart.gap_notch(record.seq, gap)
-                self.quality.on_seq_gap(gap)
-                self.alert_log.add("SEQ_GAP", session_seq=record.seq, wall_time=wt,
-                                   message=f"missing {gap} record(s)")
+            uptime_ms = record.timestamp * 1000 + record.ms
+            if self._last_uptime_ms is not None and uptime_ms < self._last_uptime_ms:
+                # device uptime went backwards: reboot, seq counter reset
+                self.quality.on_seq_reset(record.seq, wt)
+            else:
+                gap = self.integrity.check_sequence(record, self._last_seq)
+                if gap:
+                    self.chart.gap_notch(record.seq, gap)
+                    self.quality.on_seq_gap(gap)
+                    self.alert_log.add("SEQ_GAP", session_seq=record.seq, wall_time=wt,
+                                       message=f"missing {gap} record(s)")
+            self._last_uptime_ms = uptime_ms
             self._last_seq = record.seq
 
         self.latest = record
@@ -139,6 +146,7 @@ class DashboardController:
         self._shutdown_done = False
         self._last_status_poll = 0.0
         self._seen_transitions = 0
+        self._seen_reboots = 0
         self._last_crc = 0
         self._last_sync = 0
         self._last_nack = 0
@@ -242,10 +250,12 @@ class DashboardController:
             self.quality.on_frame(now)
 
             if frame.type == FrameType.Status:
-                rebooted = self.quality.on_status(self.storage_model.total_records, now,
-                                                  seq=self._latest_seq())
-                if rebooted:
-                    self._on_reboot(now)
+                self.quality.on_status(self.storage_model.total_records, now,
+                                       seq=self._latest_seq())
+
+        if self.quality.reboot_count > self._seen_reboots:
+            self._seen_reboots = self.quality.reboot_count
+            self._on_reboot(now)
 
         self._pump_error_deltas(now)
         self._pump_transitions()
@@ -309,8 +319,16 @@ class DashboardController:
     def _pump_connection_state(self, now: float) -> None:
         state = self.link.connection_state
         if state != self._last_conn_state:
+            recovered = (state == "connected"
+                         and self._last_conn_state == "reconnecting")
             self._last_conn_state = state
             self.alert_log.add("GS_EVENT", wall_time=now, message=f"link {state}")
+            if recovered:
+                # resync device state after an auto-reconnect (FR-GS-13/T10)
+                try:
+                    self.send_status()
+                except Exception:
+                    pass
 
     def _maybe_poll_status(self, now: float) -> None:
         if not self.connected:
