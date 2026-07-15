@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KERN-LITE Embedded Masterclass</title>
+    <style>
+        :root {
+            --bg-base: #0a0a0f;
+            --bg-surface: #12121a;
+            --text-main: #f0f0f5;
+            --text-muted: #9ba1a6;
+            
+            --accent-project: #00d2ff;
+            --accent-project-glow: rgba(0, 210, 255, 0.3);
+            --bg-project: rgba(0, 210, 255, 0.05);
+            
+            --accent-theory: #ff3366;
+            --accent-theory-glow: rgba(255, 51, 102, 0.3);
+            --bg-theory: rgba(255, 51, 102, 0.05);
+
+            --glass-bg: rgba(30, 30, 40, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap');
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* Background Effects */
+        .bg-glow {
+            position: fixed;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            filter: blur(120px);
+            z-index: -1;
+            opacity: 0.15;
+            pointer-events: none;
+        }
+        .bg-glow.top-left {
+            top: -200px;
+            left: -200px;
+            background: var(--accent-project);
+        }
+        .bg-glow.bottom-right {
+            bottom: -200px;
+            right: -200px;
+            background: var(--accent-theory);
+        }
+
+        /* Header */
+        header {
+            padding: 2rem 4rem;
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--glass-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo h1 {
+            font-size: 1.8rem;
+            font-weight: 800;
+            background: linear-gradient(90deg, var(--accent-project), #b366ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+        .logo p {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-top: 0.2rem;
+        }
+
+        .badges {
+            display: flex;
+            gap: 1rem;
+        }
+        .badge {
+            padding: 0.4rem 1rem;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            background: var(--bg-surface);
+            border: 1px solid var(--glass-border);
+        }
+
+        /* Main Layout */
+        main {
+            display: grid;
+            grid-template-columns: 1fr 450px;
+            gap: 2rem;
+            padding: 2rem 4rem;
+            flex: 1;
+        }
+
+        @media (max-width: 1200px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Cards & Glassmorphism */
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease, border-color 0.3s ease;
+        }
+
+        .glass-card:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 1rem;
+        }
+        .tab {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            font-family: var(--font-sans);
+            font-weight: 600;
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+        .tab:hover {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .tab.active {
+            color: var(--accent-project);
+            background: var(--bg-project);
+            box-shadow: inset 0 0 0 1px var(--accent-project);
+        }
+
+        /* Tab Contents */
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.4s ease forwards;
+        }
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Interactive Architecture Diagram */
+        .architecture-map {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            padding: 1rem 0;
+        }
+        
+        .arch-tier {
+            border: 1px dashed var(--glass-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            position: relative;
+        }
+        
+        .arch-tier::before {
+            content: attr(data-label);
+            position: absolute;
+            top: -12px;
+            left: 20px;
+            background: var(--bg-base);
+            padding: 0 10px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .node-row {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .arch-node {
+            background: var(--bg-surface);
+            border: 1px solid var(--accent-project);
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            position: relative;
+            overflow: hidden;
+            color: var(--text-main);
+        }
+
+        .arch-node::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--accent-project);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 0;
+        }
+
+        .arch-node span {
+            position: relative;
+            z-index: 1;
+        }
+
+        .arch-node:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px var(--accent-project-glow);
+        }
+
+        .arch-node.active {
+            background: var(--accent-project);
+            color: var(--bg-base);
+        }
+        
+        .flow-arrow {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            margin: -1rem 0;
+        }
+
+        /* Code Tree */
+        .tree-nav {
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+        }
+        .tree-item {
+            margin: 0.5rem 0;
+        }
+        .tree-folder {
+            cursor: pointer;
+            color: #dcbdfb;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+        .tree-folder:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .tree-folder::before {
+            content: '📁';
+            font-size: 1rem;
+        }
+        .tree-folder.open::before {
+            content: '📂';
+        }
+        .tree-children {
+            margin-left: 1.5rem;
+            border-left: 1px solid var(--glass-border);
+            padding-left: 1rem;
+            display: none;
+        }
+        .tree-children.open {
+            display: block;
+        }
+        .tree-file {
+            cursor: pointer;
+            color: var(--text-main);
+            padding: 0.3rem 0.5rem;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+        }
+        .tree-file:hover {
+            background: var(--bg-project);
+            color: var(--accent-project);
+        }
+        .tree-file::before {
+            content: '📄';
+            font-size: 0.9rem;
+        }
+        .tree-file.active {
+            background: var(--accent-project);
+            color: var(--bg-base);
+            font-weight: 700;
+        }
+
+        /* Info Panel (Right Side) */
+        .info-panel {
+            position: sticky;
+            top: calc(2rem + 80px);
+            height: calc(100vh - 4rem - 80px);
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            overflow-y: auto;
+        }
+        
+        .info-panel::-webkit-scrollbar {
+            width: 6px;
+        }
+        .info-panel::-webkit-scrollbar-thumb {
+            background: var(--glass-border);
+            border-radius: 10px;
+        }
+
+        .panel-section {
+            border-radius: 12px;
+            padding: 1.5rem;
+            border-left: 4px solid;
+            background: var(--glass-bg);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .impl-section {
+            border-color: var(--accent-project);
+            background: linear-gradient(to right, var(--bg-project), transparent);
+        }
+
+        .theory-section {
+            border-color: var(--accent-theory);
+            background: linear-gradient(to right, var(--bg-theory), transparent);
+        }
+        
+        .panel-section h3 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .impl-section h3 { color: var(--accent-project); }
+        .theory-section h3 { color: var(--accent-theory); }
+
+        .panel-section p, .panel-section ul {
+            font-size: 0.95rem;
+            color: var(--text-main);
+        }
+        
+        .panel-section ul {
+            padding-left: 1.5rem;
+            margin-top: 0.5rem;
+        }
+        .panel-section li {
+            margin-bottom: 0.4rem;
+        }
+
+        .code-snippet {
+            background: #000;
+            border-radius: 6px;
+            padding: 1rem;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            overflow-x: auto;
+            margin-top: 1rem;
+            border: 1px solid var(--glass-border);
+            color: #a6accd;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-right: 0.5rem;
+            text-transform: uppercase;
+        }
+        .tag.cxx { background: #00599C; color: white; }
+        .tag.py { background: #3776AB; color: white; }
+        .tag.rtos { background: #FF9100; color: black; }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-glow top-left"></div>
+    <div class="bg-glow bottom-right"></div>
+
+    <header>
+        <div class="logo">
+            <h1>KERN-LITE Embedded Masterclass</h1>
+            <p>Interactive Architecture & Design Principles Explorer</p>
+        </div>
+        <div class="badges">
+            <div class="badge">MCU: STM32L476RG</div>
+            <div class="badge">OS: FreeRTOS</div>
+            <div class="badge">Focus: Data Survivability</div>
+        </div>
+    </header>
+
+    <main>
+        <!-- Left Column: Interactive Exploration -->
+        <div class="exploration-area">
+            <div class="glass-card" style="min-height: 100%;">
+                <div class="tabs">
+                    <button class="tab active" onclick="switchTab('context')">System Context</button>
+                    <button class="tab" onclick="switchTab('codetour')">Code Tour</button>
+                </div>
+
+                <!-- System Context View -->
+                <div id="context" class="tab-content active">
+                    <h2>System Architecture Data Flow</h2>
+                    <p style="color: var(--text-muted); margin-bottom: 2rem;">Click on any component to inspect its implementation in KERN-LITE and learn the underlying embedded engineering principles.</p>
+                    
+                    <div class="architecture-map">
+                        
+                        <div class="arch-tier" data-label="Physical Layer">
+                            <div class="node-row">
+                                <div class="arch-node" onclick="showDetails('sensors')"><span>Physical Sensors</span></div>
+                            </div>
+                        </div>
+
+                        <div class="flow-arrow">⬇</div>
+
+                        <div class="arch-tier" data-label="Embedded Recorder (C++17 / FreeRTOS)">
+                            <div class="node-row">
+                                <div class="arch-node" onclick="showDetails('dsp')"><span>DSP / Channel Filter</span></div>
+                            </div>
+                            <div class="flow-arrow" style="margin: 0.5rem 0; font-size: 1rem;">⬇</div>
+                            <div class="node-row">
+                                <div class="arch-node" onclick="showDetails('orchestrator')"><span>Orchestrator (FSM)</span></div>
+                            </div>
+                            <div class="flow-arrow" style="margin: 0.5rem 0; font-size: 1rem;">⬇</div>
+                            <div class="node-row">
+                                <div class="arch-node" onclick="showDetails('storage')"><span>Circular Log (FatFs)</span></div>
+                                <div class="arch-node" onclick="showDetails('comms')"><span>CommLink (UART)</span></div>
+                            </div>
+                        </div>
+
+                        <div class="flow-arrow">⬇ UART2 @ 115200 (ST-Link VCOM)</div>
+
+                        <div class="arch-tier" data-label="Ground Station (Python 3)">
+                            <div class="node-row">
+                                <div class="arch-node" onclick="showDetails('gs_link')"><span>SerialLink / Decoder</span></div>
+                            </div>
+                            <div class="flow-arrow" style="margin: 0.5rem 0; font-size: 1rem;">⬇</div>
+                            <div class="node-row">
+                                <div class="arch-node" onclick="showDetails('gs_models')"><span>Telemetry & State Models</span></div>
+                                <div class="arch-node" onclick="showDetails('gs_session')"><span>Session Recorder</span></div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Code Tour View -->
+                <div id="codetour" class="tab-content">
+                    <h2>Firmware & Protocol Code Tour</h2>
+                    <p style="color: var(--text-muted); margin-bottom: 2rem;">Explore the custom application logic. CubeMX-generated boilerplate is deliberately excluded to focus on the core architecture.</p>
+                    
+                    <div class="tree-nav">
+                        <!-- Firmware -->
+                        <div class="tree-item">
+                            <div class="tree-folder" onclick="toggleFolder(this)">firmware</div>
+                            <div class="tree-children">
+                                
+                                <div class="tree-item">
+                                    <div class="tree-folder" onclick="toggleFolder(this)">system</div>
+                                    <div class="tree-children">
+                                        <div class="tree-file" onclick="showFile('orchestrator.cpp')">orchestrator.cpp</div>
+                                        <div class="tree-file" onclick="showFile('tasks.cpp')">tasks.cpp</div>
+                                        <div class="tree-file" onclick="showFile('config.hpp')">config.hpp</div>
+                                    </div>
+                                </div>
+
+                                <div class="tree-item">
+                                    <div class="tree-folder" onclick="toggleFolder(this)">recorder</div>
+                                    <div class="tree-children">
+                                        <div class="tree-file" onclick="showFile('state_machine.cpp')">state_machine.cpp</div>
+                                        <div class="tree-file" onclick="showFile('sensor_bus.hpp')">sensor_bus.hpp</div>
+                                        <div class="tree-file" onclick="showFile('comm_link.cpp')">comm_link.cpp</div>
+                                    </div>
+                                </div>
+
+                                <div class="tree-item">
+                                    <div class="tree-folder" onclick="toggleFolder(this)">storage</div>
+                                    <div class="tree-children">
+                                        <div class="tree-file" onclick="showFile('circular_log.cpp')">circular_log.cpp</div>
+                                        <div class="tree-file" onclick="showFile('sensor_record.hpp')">sensor_record.hpp</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="tree-item">
+                                    <div class="tree-folder" onclick="toggleFolder(this)">protocol</div>
+                                    <div class="tree-children">
+                                        <div class="tree-file" onclick="showFile('frame.hpp')">frame.hpp</div>
+                                        <div class="tree-file" onclick="showFile('crc32.cpp')">crc32.cpp</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="tree-item">
+                                    <div class="tree-folder" onclick="toggleFolder(this)">hal</div>
+                                    <div class="tree-children">
+                                        <div class="tree-file" onclick="showFile('hal_wrappers')">thin HAL wrappers (adc, gpio)</div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <!-- Ground Station -->
+                        <div class="tree-item" style="margin-top: 1rem;">
+                            <div class="tree-folder" onclick="toggleFolder(this)">groundstation</div>
+                            <div class="tree-children">
+                                <div class="tree-file" onclick="showFile('frame.py')">frame.py & crc.py</div>
+                                <div class="tree-file" onclick="showFile('link.py')">link.py</div>
+                                <div class="tree-file" onclick="showFile('telemetry.py')">telemetry.py</div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Right Column: Info Panel -->
+        <div class="info-panel" id="info-panel">
+            <div class="empty-state">
+                Select a component from the Architecture Map or Code Tour to view its implementation details and underlying embedded principles.
+            </div>
+            <!-- Content gets injected here by JS -->
+        </div>
+    </main>
+
+    <script>
+        // Data Store for content
+        const dataStore = {
+            // Components
+            'sensors': {
+                title: 'Physical Sensors',
+                impl: `
+                    <ul>
+                        <li><span class="tag cxx">Drivers</span> <code>Lm35</code>, <code>Photodiode</code>, <code>Potentiometer</code> read via ADC1 (header-only, returns °C or normalized).</li>
+                        <li><code>Dht11</code>: Bit-banged GPIO PB5 using DWT-based µs timing, critical-section 40-bit read.</li>
+                        <li><code>RadiationLatch</code>: EXTI3 ISR triggers a binary semaphore give-from-ISR.</li>
+                    </ul>
+                `,
+                theory: `
+                    <strong>Hardware Abstraction & Determinism</strong>
+                    <p>In embedded systems, sensors operate at vastly different speeds. The ADC channels can be read almost instantly, while the DHT11 requires strict, bit-banged microsecond timing.</p>
+                    <p>Wrapping these in abstracted classes isolates the application from hardware idiosyncrasies, preventing slow sensors (like the DHT11 taking ~2s) from blocking the high-frequency control loops.</p>
+                `
+            },
+            'dsp': {
+                title: 'DSP & Signal Conditioning',
+                impl: `
+                    <ul>
+                        <li><span class="tag cxx">Templates</span> Header-only template <code>Channel&lt;N&gt;</code> composes two filters.</li>
+                        <li><code>MovingAverage&lt;T,N&gt;</code>: Fixed-window circular buffer, O(1) update, no heap allocation. Window size is 16.</li>
+                        <li><code>ThresholdDetector</code>: 3-state FSM (Normal/Low/High) with hysteresis on the return-to-normal edge.</li>
+                    </ul>
+                `,
+                theory: `
+                    <strong>Real-time Filtering & Memory Constraints</strong>
+                    <p>Embedded systems often suffer from noisy analog readings. Moving averages act as low-pass filters to smooth out this noise.</p>
+                    <p><strong>Why no heap?</strong> In critical embedded environments (MISRA-C/C++ guidelines), dynamic memory allocation (<code>malloc</code>/<code>new</code>) is strictly avoided to prevent heap fragmentation and non-deterministic allocation times. Static buffers ensure bounded memory usage.</p>
+                    <p><strong>Hysteresis</strong> prevents rapid toggling (bouncing) of alarm states when a signal hovers exactly around the threshold value.</p>
+                `
+            },
+            'orchestrator': {
+                title: 'System Orchestrator',
+                impl: `
+                    <ul>
+                        <li><span class="tag rtos">Core</span> The application core (Meyers singleton) owns all subsystem objects by value.</li>
+                        <li>Exposes 4 static FreeRTOS tasks: <code>Sensor</code> (100ms), <code>Storage</code> (100ms), <code>Comms</code> (10ms), and <code>System</code> (50ms).</li>
+                        <li><strong>Decoupling:</strong> Sensor and Storage tasks communicate via <code>SensorBus</code> (a double-buffered single-slot mailbox guarded by a static mutex).</li>
+                    </ul>
+                `,
+                theory: `
+                    <strong>Task Decoupling in RTOS</strong>
+                    <p>An RTOS (like FreeRTOS) allows the system to multitask. By separating sampling (Sensor Task) from saving (Storage Task), an SD card write latency spike won't cause the system to miss a sensor reading.</p>
+                    <p>The <code>SensorBus</code> acts as a thread-safe boundary. Using a single-slot mailbox with a mutex means the producer always writes the freshest data, and the consumer reads it when ready, safely dropping intermediate states if it's running behind, prioritizing the "latest truth".</p>
+                `
+            },
+            'storage': {
+                title: 'Crash-Recoverable Circular Log',
+                impl: `
+                    <ul>
+                        <li>4 FatFs files (<code>LOG00.BIN</code> to <code>LOG03.BIN</code>), 256 records each (1024 capacity).</li>
+                        <li>Each record is immediately flushed to disk using <code>f_sync</code>.</li>
+                        <li><code>LogMeta</code> (36 bytes, CRC-checked) is saved every 16 writes.</li>
+                        <li><strong>Recovery:</strong> On boot, scans for valid metadata. If missing/corrupt, it performs a full-capacity scan of all records to reconstruct the latest write head based on timestamp and sequence numbers.</li>
+                    </ul>
+                `,
+                theory: `
+                    <strong>Data Survivability</strong>
+                    <p>In harsh environments (like aerospace or automotive), power loss can happen instantly. Standard file I/O caches data in RAM. Calling <code>f_sync()</code> forces the filesystem to commit the physical bytes to the SD card immediately, ensuring the telemetry is preserved right up to the moment of power loss.</p>
+                    <p>The circular log ring topology guarantees bounded space usage: it gracefully overwrites only the oldest data once full.</p>
+                `
+            },
+            'comms': {
+                title: 'CommLink & Protocol',
+                impl: `
+                    <ul>
+                        <li><span class="tag cxx">UART</span> USART2 @ 115200 baud. ISR-driven RX feeds a 10-state decoder.</li>
+                        <li>TX is blocking (100ms timeout) and serialized by a mutex <code>m_mutex</code>.</li>
+                        <li><strong>CRC-32:</strong> Every frame has an IEEE 802.3 CRC-32 appended. The algorithm uses a compile-time <code>constexpr</code> lookup table.</li>
+                    </ul>
+                `,
+                theory: `
+                    <strong>Binary Framing & Integrity</strong>
+                    <p>UART is an unformatted stream of bits. A framing protocol (like the STX/ETX wrapper here) adds boundaries so the receiver knows where messages start and end.</p>
+                    <p>Because serial links are susceptible to EMI (Electromagnetic Interference), a robust 32-bit CRC is critical. If a bit flips in transit, the CRC fails, and the frame is safely dropped, preventing the Ground Station from acting on corrupted data.</p>
+                `
+            },
+            'gs_link': {
+                title: 'Host Serial Link',
+                impl: `
+                    <ul>
+                        <li><span class="tag py">Python</span> <code>pyserial</code> with 50ms read timeout and a background auto-reconnect thread.</li>
+                        <li>Implements the exact same 10-state framing machine as the firmware.</li>
+                        <li>Delegates frame validation to <code>zlib.crc32</code>, which guarantees parity with the firmware's CRC table implementation.</li>
+                    </ul>
+                `,
+                theory: `
+                    <strong>Off-Target Testing & Parity</strong>
+                    <p>Keeping the binary contract identical across C++ and Python is a common pain point. By having a strict byte-level protocol and implementing "Known Answer Tests" (KATs) on both sides (e.g., CRC32("123456789") == 0xCBF43926), integration bugs are drastically reduced.</p>
+                `
+            },
+            'gs_models': {
+                title: 'Ground Station Models',
+                impl: `
+                    <ul>
+                        <li>Fans decoded frames out to model objects: <code>DeviceStateModel</code>, <code>TelemetryModel</code>, etc.</li>
+                        <li><code>IntegrityChecker</code>: Performs sequence-gap detection and record-level CRC re-verification.</li>
+                        <li>Extracts bitmasks for sensor faults and alerts from the 32-byte <code>SensorRecord</code> structure.</li>
+                    </ul>
+                `,
+                theory: `
+                    <strong>Model-View Architecture</strong>
+                    <p>By decoupling the Serial Link (transport layer) from the Data Models, the ground station becomes highly testable. Developers can mock the serial link and feed raw byte arrays into the models to test the data processing logic without needing physical hardware attached.</p>
+                `
+            },
+            
+            // Files
+            'orchestrator.cpp': {
+                title: 'system/orchestrator.cpp',
+                impl: `
+                    <p>The central hub of the application. Owns all system state and coordinates the 4 tasks.</p>
+                    <pre class="code-snippet"><code>void Orchestrator::streamRecord(const SensorRecord& rec) {
+    // Encodes record payload into a RECORD frame
+    // Serializes via CommLink::send()
+}</code></pre>
+                `,
+                theory: `
+                    <strong>Singleton Pattern in Embedded</strong>
+                    <p>While often debated in software engineering, the Singleton pattern is extremely common in embedded systems. Since there is exactly one physical MCU and one set of hardware peripherals, a singleton perfectly models the physical reality of the board.</p>
+                `
+            },
+            'tasks.cpp': {
+                title: 'system/tasks.cpp',
+                impl: `
+                    <p>Allocates static TCBs and stacks for FreeRTOS tasks using <code>xTaskCreateStatic</code>. Invokes <code>Orchestrator::init()</code> before spawning the tasks.</p>
+                `,
+                theory: `
+                    <strong>Static RTOS Allocation</strong>
+                    <p>Modern functional safety standards (like ISO 26262 for automotive) require avoiding dynamic memory. <code>xTaskCreateStatic</code> allocates the task's stack in the compiler's <code>.bss</code> or <code>.data</code> segment, allowing memory usage to be proven at compile time.</p>
+                `
+            },
+            'config.hpp': {
+                title: 'system/config.hpp',
+                impl: `
+                    <p>Contains all tunables for the system in a centralized namespace: task periods, baud rates (115200), DSP window sizes (16), ring geometry, and the erase magic value (<code>0xDEADC0DE</code>).</p>
+                `,
+                theory: `
+                    <strong>Configuration Management</strong>
+                    <p>Centralizing tunables prevents "magic numbers" from being scattered across the codebase. It allows a single engineer to review system timings and thresholds without digging through implementation logic.</p>
+                `
+            },
+            'state_machine.cpp': {
+                title: 'recorder/state_machine.cpp',
+                impl: `
+                    <p>Implements a 3-state FSM: <code>Idle</code>, <code>Recording</code>, and <code>Fault</code>. It uses a pure transition table with no side effects.</p>
+                `,
+                theory: `
+                    <strong>Pure FSMs</strong>
+                    <p>A "pure" state machine decouples the state transitions from the actions. By passing an <code>Event</code> to the FSM, it simply returns the new <code>State</code>. The caller is responsible for executing side effects (like turning on an LED). This makes the FSM trivially unit-testable on a host PC.</p>
+                `
+            },
+            'sensor_bus.hpp': {
+                title: 'recorder/sensor_bus.hpp',
+                impl: `
+                    <p>A double-buffered single-slot mailbox for the latest <code>SensorRecord</code>. Guarded by a static mutex with a 5ms acquire timeout.</p>
+                `,
+                theory: `
+                    <strong>Timeouts in RTOS Primitives</strong>
+                    <p>Never wait infinitely in a real-time task. Using a 5ms timeout ensures that if the mutex is deadlocked or held too long by a lower priority task (Priority Inversion), the waiting task can recover, log an error, and continue its timing loop safely.</p>
+                `
+            },
+            'comm_link.cpp': {
+                title: 'recorder/comm_link.cpp',
+                impl: `
+                    <p>Manages the UART transport. ISR-driven RX (<code>HAL_UART_RxCpltCallback</code>) sets a <code>volatile m_frame_ready</code> flag. The Comms task <code>poll()</code> copies the frame under <code>__disable_irq()</code>.</p>
+                `,
+                theory: `
+                    <strong>ISR to Task Communication</strong>
+                    <p>Interrupt Service Routines must be as short as possible. Reading a byte and setting a flag is fast. <code>__disable_irq()</code> is used briefly in the task to prevent the ISR from modifying the buffer while the task is copying it (preventing a race condition).</p>
+                `
+            },
+            'circular_log.cpp': {
+                title: 'storage/circular_log.cpp',
+                impl: `
+                    <p>Manages the FatFs ring buffer logic. Handles crash-recovery by scanning metadata (<code>META.BIN</code>). Replay logic walks the slots oldest-first.</p>
+                `,
+                theory: `
+                    <strong>Wear Leveling & Embedded File Systems</strong>
+                    <p>SD cards use flash memory, which has a limited number of write cycles. While FatFs isn't natively wear-leveling (unlike LittleFS), using multiple files in a ring distribution and minimizing metadata flushes helps extend the life of the SD card in this specific architecture.</p>
+                `
+            },
+            'sensor_record.hpp': {
+                title: 'storage/sensor_record.hpp',
+                impl: `
+                    <p>Defines the 32-byte <code>SensorRecord</code> struct packed using <code>#pragma pack(1)</code>. Contains <code>static_assert</code> checks to guarantee size=32 and crc_offset=28.</p>
+                    <pre class="code-snippet"><code>#pragma pack(1)
+struct SensorRecord {
+    uint32_t timestamp;
+    uint16_t ms;
+    // ...
+    uint32_t crc32;
+};</code></pre>
+                `,
+                theory: `
+                    <strong>Struct Packing & Alignment</strong>
+                    <p>By default, C/C++ compilers insert padding bytes between struct members to align them to 4-byte boundaries for memory access efficiency. <code>#pragma pack(1)</code> disables this, ensuring the memory layout exactly matches the byte-by-byte wire protocol expected by the Ground Station.</p>
+                `
+            },
+            'frame.hpp': {
+                title: 'protocol/frame.hpp',
+                impl: `
+                    <p>Defines the shared binary contract: wire constants, fixed overhead (9 bytes), max payload (256 bytes), and command opcodes (e.g., <code>0x10</code> for Record, <code>0x01</code> for CmdStart).</p>
+                `,
+                theory: `
+                    <strong>Interface Control Documents (ICD)</strong>
+                    <p>In larger teams, the comms protocol is often the most fragile integration point. Defining the layout in a single authoritative header file that acts as the "Truth" prevents drift between the embedded and software teams.</p>
+                `
+            },
+            'crc32.cpp': {
+                title: 'protocol/crc32.cpp',
+                impl: `
+                    <p>Implements IEEE 802.3 CRC-32 (Poly <code>0x04C11DB7</code>, Init <code>0xFFFFFFFF</code>). Uses a <code>constexpr</code> lookup table generated at compile time.</p>
+                `,
+                theory: `
+                    <strong>Constexpr vs RAM</strong>
+                    <p>Generating the 256-entry lookup table at compile time using C++11/14 <code>constexpr</code> places the table directly into Flash memory (ROM). This saves 1KB of precious RAM, which is highly constrained on microcontrollers, without sacrificing the speed of a lookup table.</p>
+                `
+            },
+            'hal_wrappers': {
+                title: 'Thin HAL Wrappers (hal/)',
+                impl: `
+                    <p>Header-only, stateless wrappers for STM32 HAL (e.g., <code>adc</code>, <code>gpio</code>, <code>watchdog</code>). These form the ONLY sanctioned path to raw hardware from the application code.</p>
+                `,
+                theory: `
+                    <strong>Vendor Lock-in Mitigation</strong>
+                    <p>STMicroelectronics provides the <code>HAL_</code> functions. If the project directly calls these everywhere, switching to a Texas Instruments or NXP microcontroller later requires a total rewrite. A thin wrapper abstracts the vendor API into generic functions like <code>gpio::setHigh(pin)</code>.</p>
+                `
+            },
+            'frame.py': {
+                title: 'groundstation/frame.py & crc.py',
+                impl: `
+                    <p>Python mirror of the firmware protocol. Implements the same 10-state parser (<code>WaitStx → Type → ... → WaitEtx</code>). Uses <code>zlib.crc32</code> for verification.</p>
+                `,
+                theory: `
+                    <strong>State Machine Parity</strong>
+                    <p>The parser on both ends is identical. If oversized data arrives, both sides fail safely (<code>SyncError</code>) and silently drop garbage before STX. This architectural symmetry is tested via cross-vector tests.</p>
+                `
+            },
+            'link.py': {
+                title: 'groundstation/link.py',
+                impl: `
+                    <p>Manages the serial transport via a background daemon thread that polls every 2s for auto-reconnect. Handles a deque RX queue and fans out decoded frames to the attached models.</p>
+                `,
+                theory: `
+                    <strong>Asynchronous Host I/O</strong>
+                    <p>Desktop UI applications (or even CLI tools) can freeze if they block waiting for a serial port read. Moving the serial polling to a daemon thread ensures the Ground Station remains responsive while constantly chewing through incoming telemetry bytes.</p>
+                `
+            },
+            'telemetry.py': {
+                title: 'groundstation/telemetry.py',
+                impl: `
+                    <p>Decodes the 32-byte <code>SensorRecord</code> using Python's <code>struct</code> module (<code>_RECORD_FMT = "&lt;IHHhhHHHBBB7xI"</code>). Calculates running statistics (Welford mean) across the session.</p>
+                `,
+                theory: `
+                    <strong>Little-Endian Wire Formats</strong>
+                    <p>The format string <code>&lt;</code> dictates Little-Endian parsing. Since the STM32 Cortex-M4 is little-endian, sending raw memory bytes over the wire means the host MUST interpret them as little-endian to reconstruct the integers correctly.</p>
+                `
+            }
+        };
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+        }
+
+        function toggleFolder(el) {
+            el.classList.toggle('open');
+            el.nextElementSibling.classList.toggle('open');
+        }
+
+        function showDetails(id) {
+            // Remove active states
+            document.querySelectorAll('.arch-node').forEach(n => n.classList.remove('active'));
+            document.querySelectorAll('.tree-file').forEach(n => n.classList.remove('active'));
+            
+            // Add active state to clicked item
+            if(event.currentTarget.classList.contains('arch-node') || event.currentTarget.classList.contains('tree-file')) {
+                event.currentTarget.classList.add('active');
+            }
+
+            const data = dataStore[id];
+            const panel = document.getElementById('info-panel');
+            
+            if(data) {
+                panel.innerHTML = `
+                    <div class="panel-section impl-section">
+                        <h3><span style="font-size:1.2rem">⚙️</span> KERN-LITE Implementation</h3>
+                        <h4>${data.title}</h4>
+                        ${data.impl}
+                    </div>
+                    <div class="panel-section theory-section">
+                        <h3><span style="font-size:1.2rem">💡</span> Embedded Best Practices</h3>
+                        ${data.theory}
+                    </div>
+                `;
+            } else {
+                panel.innerHTML = `<div class="empty-state">No detailed implementation notes available for this component.</div>`;
+            }
+        }
+
+        function showFile(id) {
+            showDetails(id);
+        }
+    </script>
+</body>
+</html>
