@@ -42,6 +42,32 @@ python -m venv .venv
 
 Run all commands from the repo root.
 
+## Build & Flash (firmware)
+
+- **STM32CubeIDE:** import the repo root as an existing project, build the `Debug`
+  configuration, flash with Run → Debug (ST-Link on the Nucleo).
+- **CLI (CI parity):** `make -f tests/Makefile.ci firmware` (needs `gcc-arm-none-eabi`).
+
+## Tests
+
+```bash
+make -C tests run     # host C++ tests (codec, DSP, storage, FSM, cross-vectors) + pytest
+.venv/bin/pytest -v   # Python tests only
+```
+
+CRC known-answer on both ends: `CRC32("123456789") = 0xCBF43926`.
+
+## Configured constants
+
+| Constant | Value |
+|---|---|
+| `LOG_FILE_COUNT` | 4 |
+| `RECORDS_PER_FILE` | 256 |
+| `META_FLUSH_EVERY_N` | 16 |
+| Sample rate | 10 Hz |
+| UART | 115200 baud, USART2 |
+| `ERASE_MAGIC` | `0xDEADC0DE` |
+
 ---
 
 ## Pinout
