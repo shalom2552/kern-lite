@@ -48,7 +48,8 @@ class GroundStationApp(tk.Tk):
         _silence_groundstation_logging()
         super().__init__()
         self.title("KERN-LITE Ground Station")
-        self.minsize(1080, 720)
+        self.minsize(800, 600)
+        self.geometry("800x600")
 
         self.controller = controller if controller is not None else DashboardController()
         self._shutting_down = False
@@ -172,7 +173,7 @@ class GroundStationApp(tk.Tk):
         window = tk.Toplevel(self)
         window.title("KERN-LITE - Live records")
         window.configure(bg=theme.COLOR_BG)
-        window.geometry("1100x700")
+        window.geometry("800x600")
         window.rowconfigure(0, weight=1)
         window.columnconfigure(0, weight=1)
 

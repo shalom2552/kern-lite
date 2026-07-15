@@ -38,7 +38,7 @@ class ChartsPanel(ttk.Frame):
                             command=lambda c=channel: self._toggle(c)).grid(
                 row=0, column=i, sticky="w", padx=(0, 12))
 
-        self.figure = Figure(figsize=(8, 6), dpi=100, facecolor=theme.COLOR_BG)
+        self.figure = Figure(figsize=(6, 4), dpi=100, facecolor=theme.COLOR_BG)
         axes = self.figure.subplots(len(CHANNELS), 1, sharex=True)
         self.ax_dict = dict(zip(CHANNELS, axes))
         for ax in axes:
