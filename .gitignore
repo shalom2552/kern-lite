@@ -34,3 +34,6 @@ Thumbs.db
 
 # CI build output
 build-ci/
+
+# ground station session recordings
+sessions/

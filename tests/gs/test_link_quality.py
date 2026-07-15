@@ -71,3 +71,15 @@ def test_total_records_drop_fires_reboot_event():
     assert rebooted_second is True
     assert any("REBOOT" in event["category"].upper() for event in sink.events)
 
+
+
+def test_crc_errors_without_any_good_frames_does_not_crash():
+    monitor = LinkQualityMonitor()
+    monitor.update(0.0)
+
+    monitor.on_crc_error()
+    monitor.on_sync_error()
+
+    monitor.update(5.0)
+
+    assert 0.0 <= monitor.quality_pct <= 100.0

@@ -137,7 +137,8 @@ class LinkQualityMonitor:
 
         crc_rate = self._crc_errors / attempts
         sync_rate = self._sync_errors / attempts
-        gap_rate = self._gap_records / (self._frames + self._gap_records)
+        gap_total = self._frames + self._gap_records
+        gap_rate = self._gap_records / gap_total if gap_total else 0.0
         nack_rate = self._nacks / self._commands if self._commands else 0.0
 
         jitter = 0.0
