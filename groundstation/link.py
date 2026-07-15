@@ -10,6 +10,7 @@ import threading
 from collections import deque
 from typing import Optional
 import serial
+from serial.tools import list_ports
 
 from groundstation.frame import Frame, Decoder, encode, FrameType, CrcError, SyncError
 
@@ -38,6 +39,11 @@ class SerialLink:
         self._baud = 115200
         self._running = False
         self._reconnect_thread = None
+
+        # USB identity, to re-find the device if its tty path changes on replug
+        self._usb_serial = None
+        self._usb_vid = None
+        self._usb_pid = None
 
         self._pending_command_type = None
         self._pending_command_time = None
@@ -76,6 +82,7 @@ class SerialLink:
         # so transient disconnects can recover with the same settings.
         self._port = port
         self._baud = baud
+        self._capture_usb_identity(port)
 
         self.ser = serial.Serial(port, baudrate=baud, timeout=0.05)
         self.connection_state = "connected"
@@ -109,6 +116,41 @@ class SerialLink:
         if command_type == FrameType.CmdReplay:
             self._in_replay = True
 
+    def _capture_usb_identity(self, port: str):
+        for info in list_ports.comports():
+            if info.device == port:
+                self._usb_serial = info.serial_number
+                self._usb_vid = info.vid
+                self._usb_pid = info.pid
+                return
+
+    def _locate_port(self) -> Optional[str]:
+        # Prefer the original path; otherwise match by USB serial, then VID/PID.
+        ports = list(list_ports.comports())
+        for info in ports:
+            if info.device == self._port:
+                return self._port
+        if self._usb_serial is not None:
+            for info in ports:
+                if info.serial_number == self._usb_serial:
+                    return info.device
+        if self._usb_vid is not None:
+            for info in ports:
+                if info.vid == self._usb_vid and info.pid == self._usb_pid:
+                    return info.device
+        return None
+
+    def _drop_link(self):
+        # Close the dead handle: is_open never goes False by itself, and an
+        # open stale fd keeps the old tty path reserved on Linux.
+        self.connection_state = "reconnecting"
+        ser, self.ser = self.ser, None
+        if ser is not None:
+            try:
+                ser.close()
+            except Exception:
+                pass
+
     def send_frame(self, frame: Frame):
         # Encode the frame before writing so every outbound message follows the
         # same protocol framing as the firmware decoder.
@@ -116,7 +158,11 @@ class SerialLink:
             raise RuntimeError("Serial port is not connected")
 
         data = encode(frame)
-        self.ser.write(data)
+        try:
+            self.ser.write(data)
+        except Exception as exc:
+            self._drop_link()
+            raise RuntimeError("Serial link lost, reconnecting") from exc
         self.tx_count += 1
 
     def receive_frame(self) -> Optional[Frame]:
@@ -130,7 +176,7 @@ class SerialLink:
             try:
                 data = self.ser.read(self.ser.in_waiting or 1)
             except Exception:
-                self.connection_state = "reconnecting"
+                self._drop_link()
                 return None
 
             for byte in data:
@@ -243,13 +289,14 @@ class SerialLink:
                 self.connection_state = "reconnecting"
 
                 try:
-                    # Recreate the serial object with the last known connection
-                    # settings instead of requiring the caller to rebuild state.
-                    self.ser = serial.Serial(
-                        self._port,
-                        baudrate=self._baud,
-                        timeout=0.05
-                    )
+                    port = self._locate_port()
+                    if port is None:
+                        time.sleep(2)
+                        continue
+                    self.ser = serial.Serial(port, baudrate=self._baud,
+                                             timeout=0.05)
+                    self._port = port
+                    self.decoder = Decoder()  # resync mid-stream after replug
                     self.connection_state = "connected"
                 except Exception:
                     time.sleep(2)
