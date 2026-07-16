@@ -100,6 +100,7 @@ FRESULT f_write(FIL* fp, const void* buff, UINT btw, UINT* bw)
         return FR_INVALID_PARAMETER;
     }
     size_t n = std::fwrite(buff, 1, btw, fp->host);
+    std::fflush(fp->host); // the shim "card" is durable per write; f_sync timing is firmware policy
     fp->fptr += n;
     if (fp->fptr > fp->obj.objsize) {
         fp->obj.objsize = fp->fptr;

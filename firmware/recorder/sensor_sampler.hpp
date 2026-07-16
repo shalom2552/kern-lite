@@ -80,6 +80,7 @@ private:
     uint32_t m_sensorTick = 0;
     float m_lastDhtTemp = 0.0f;
     float m_lastDhtHum = 0.0f;
+    uint8_t m_dhtFaultBits = 0;
     volatile uint8_t m_lastFaultBits = 0;
 };
 

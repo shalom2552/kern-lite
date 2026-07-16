@@ -17,74 +17,56 @@ MCU - STM32L476RG.
 
 ---
 
-## Running the Ground Station (Python)
-Python tests runs in an isolated Python virtualenv (`.venv`) for portability and separation from system packages. <br>
-Activate/invoke it per-OS:
+## Python Environment & Usage
 
-<details>
-<summary>Linux / macOS / WSL</summary>
-<br>
-  
-First-time setup:
+The Ground Station and Dashboard run in an isolated Python virtual environment (`.venv`).
+> **Windows:** Replace `.venv/bin/` with `.venv\Scripts\` in the commands below.
+
 ```bash
+# Ubuntu/Debian/WSL prerequisites (install Tkinter):
+sudo apt update && sudo apt install python3-tk
+
+# First-time setup:
 python -m venv .venv
 .venv/bin/pip install -r requirements.txt
-```
-Run tests:
-```bash
-.venv/bin/pytest -v
-```
-Run a Python file:
-```bash
-.venv/bin/python <path/to/file.py>
-```
-Check Python syntax:
-```bash
-.venv/bin/python3 -m py_compile <path-to-file> && echo OK || echo FAIL
-```
-</details>
 
-<details>
-<summary>Windows (cmd)</summary>
-<br>
-  
-First-time setup:
-```bash
-python -m venv .venv
-.venv\Scripts\pip install -r requirements.txt
-```
-Run tests:
-```bash
-.venv\Scripts\pytest -v
-```
-Run a Python file:
-```bash
-.venv\Scripts\python <path\to\file.py>
-```
-Check Python syntax:
-```bash
-.venv\Scripts\python -m py_compile <path-to-file> && echo OK || echo FAIL
-```
-</details>
-
-Run all commands from repo root.
-
-### Dashboard
-
-Full operator console (connect, commands, live values, charts, storage ring,
-link quality, events, timeline, session recording/reload, exports):
-```bash
+# Launch Dashboard / Simulator:
 .venv/bin/python -m dashboard
-```
-Pick the board's serial port and press Connect. Every connect creates a new
-`sessions/<timestamp>/` directory; closing the window or Ctrl+C shuts down
-cleanly and flushes the session files.
+.venv/bin/python -m dashboard.sim # No hardware simulator
 
-To try the dashboard without hardware, run the device simulator and connect
-to the pty path it prints:
-```bash
-.venv/bin/python -m dashboard.sim
+# Development & Testing:
+.venv/bin/pytest -v # Run tests
+.venv/bin/python <path/to/file.py> # Run a Python file
+.venv/bin/python3 -m py_compile <path-to-file> && echo OK || echo FAIL # Check Python syntax
 ```
+
+Run all commands from the repo root.
+
+## Build & Flash (firmware)
+
+- **STM32CubeIDE:** import the repo root as an existing project, build the `Debug`
+  configuration, flash with Run → Debug (ST-Link on the Nucleo).
+- **CLI (CI parity):** `make -f tests/Makefile.ci firmware` (needs `gcc-arm-none-eabi`).
+
+## Tests
+
+```bash
+make -C tests run     # host C++ tests (codec, DSP, storage, FSM, cross-vectors) + pytest
+.venv/bin/pytest -v   # Python tests only
+```
+
+CRC known-answer on both ends: `CRC32("123456789") = 0xCBF43926`.
+
+## Configured constants
+
+| Constant | Value |
+|---|---|
+| `LOG_FILE_COUNT` | 4 |
+| `RECORDS_PER_FILE` | 256 |
+| `META_FLUSH_EVERY_N` | 16 |
+| Sample rate | 10 Hz |
+| UART | 115200 baud, USART2 |
+| `ERASE_MAGIC` | `0xDEADC0DE` |
 
 ---
 

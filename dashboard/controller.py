@@ -63,6 +63,7 @@ class TelemetryFanout:
         self.record_count = 0
         self.history: deque[RecordRow] = deque(maxlen=RECORD_HISTORY)
         self._last_seq: int | None = None
+        self._last_uptime_ms: int | None = None
         self.link: SerialLink | None = None
 
     def ingest(self, record: SensorRecord, wall_time: float | None = None) -> None:
@@ -70,12 +71,18 @@ class TelemetryFanout:
 
         in_replay = self.link is not None and self.link._in_replay
         if not in_replay:
-            gap = self.integrity.check_sequence(record, self._last_seq)
-            if gap:
-                self.chart.gap_notch(record.seq, gap)
-                self.quality.on_seq_gap(gap)
-                self.alert_log.add("SEQ_GAP", session_seq=record.seq, wall_time=wt,
-                                   message=f"missing {gap} record(s)")
+            uptime_ms = record.timestamp * 1000 + record.ms
+            if self._last_uptime_ms is not None and uptime_ms < self._last_uptime_ms:
+                # device uptime went backwards: reboot, seq counter reset
+                self.quality.on_seq_reset(record.seq, wt)
+            else:
+                gap = self.integrity.check_sequence(record, self._last_seq)
+                if gap:
+                    self.chart.gap_notch(record.seq, gap)
+                    self.quality.on_seq_gap(gap)
+                    self.alert_log.add("SEQ_GAP", session_seq=record.seq, wall_time=wt,
+                                       message=f"missing {gap} record(s)")
+            self._last_uptime_ms = uptime_ms
             self._last_seq = record.seq
 
         self.latest = record
@@ -139,6 +146,7 @@ class DashboardController:
         self._shutdown_done = False
         self._last_status_poll = 0.0
         self._seen_transitions = 0
+        self._seen_reboots = 0
         self._last_crc = 0
         self._last_sync = 0
         self._last_nack = 0
@@ -179,6 +187,59 @@ class DashboardController:
             self._session_open = False
         self.alert_log.add("GS_EVENT", message="disconnected")
         self._last_conn_state = self.link.connection_state
+
+    def reset(self) -> str | None:
+        """Flush every derived view and counter to a clean slate without
+        dropping the serial link. When connected, rolls a fresh session
+        directory so recorded files and exports start over too. Returns the
+        new session dir, or None if not connected."""
+        now = time.time()
+
+        self.alert_log = AlertLog()
+        self.state_model = DeviceStateModel()
+        self.storage_model = StorageModel()
+        self.integrity = IntegrityChecker()
+        self.quality = LinkQualityMonitor(alert_log=self.alert_log)
+        self.timeline = StateTimeline()
+        self.stats = SessionStats()
+        self.chart = RollingChart()
+        self.telemetry = TelemetryFanout(self.stats, self.chart, self.quality,
+                                         self.alert_log, self.integrity)
+        self.telemetry.link = self.link
+
+        # point the live link's receive path at the fresh models
+        self.link.state_model = self.state_model
+        self.link.storage_model = self.storage_model
+        self.link.telemetry_model = self.telemetry
+        self.link.integrity_checker = self.integrity
+        self.link.alert_log = self.alert_log
+        self.link._last_seq = None
+
+        session_dir = None
+        if self._session_open and self.session.port is not None:
+            self.session.close()
+            session_dir = self.session.on_connect(self.session.port)
+            self.session.records.clear()
+            self.session.wall_times.clear()
+
+        # resync bookkeeping; keep the link's own error counters so their
+        # deltas stay zero and old errors are not replayed into the fresh log
+        self._last_status_poll = 0.0
+        self._seen_transitions = 0
+        self._seen_reboots = self.quality.reboot_count
+        self._last_crc = self.link.crc_error_count
+        self._last_sync = self.link.sync_error_count
+        self._last_nack = self.link.nack_count
+        self._alert_active = {c: False for c in CHANNELS}
+        self._last_conn_state = self.link.connection_state
+
+        self.alert_log.add("GS_EVENT", wall_time=now, message="reset")
+        if self.connected:
+            self.timeline.on_state_change(self.state_model.state,
+                                          self.state_model.state, now,
+                                          self.telemetry.record_count)
+            self.send_status()
+        return session_dir
 
     def shutdown(self) -> None:
         """Idempotent teardown: close the port and session files, and drop the
@@ -242,10 +303,12 @@ class DashboardController:
             self.quality.on_frame(now)
 
             if frame.type == FrameType.Status:
-                rebooted = self.quality.on_status(self.storage_model.total_records, now,
-                                                  seq=self._latest_seq())
-                if rebooted:
-                    self._on_reboot(now)
+                self.quality.on_status(self.storage_model.total_records, now,
+                                       seq=self._latest_seq())
+
+        if self.quality.reboot_count > self._seen_reboots:
+            self._seen_reboots = self.quality.reboot_count
+            self._on_reboot(now)
 
         self._pump_error_deltas(now)
         self._pump_transitions()
@@ -309,8 +372,16 @@ class DashboardController:
     def _pump_connection_state(self, now: float) -> None:
         state = self.link.connection_state
         if state != self._last_conn_state:
+            recovered = (state == "connected"
+                         and self._last_conn_state == "reconnecting")
             self._last_conn_state = state
             self.alert_log.add("GS_EVENT", wall_time=now, message=f"link {state}")
+            if recovered:
+                # resync device state after an auto-reconnect (FR-GS-13/T10)
+                try:
+                    self.send_status()
+                except Exception:
+                    pass
 
     def _maybe_poll_status(self, now: float) -> None:
         if not self.connected:

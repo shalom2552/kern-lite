@@ -61,6 +61,10 @@ class EventsPanel(ttk.LabelFrame):
         for item in rows[MAX_ROWS:]:
             self.tree.delete(item)
 
+    def reset(self) -> None:
+        self._rendered = 0
+        self.tree.delete(*self.tree.get_children())
+
     def _repopulate(self) -> None:
         self.tree.delete(*self.tree.get_children())
         wanted = self._wanted()

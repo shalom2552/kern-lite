@@ -44,6 +44,8 @@ void Orchestrator::runSensorTask()
 {
     m_sampler.init();
 
+    // fixed-period wakeups so sample/write time does not stretch the 10 Hz cadence
+    TickType_t lastWake = xTaskGetTickCount();
     for (;;) {
         if (m_sm.isLogging()) {
             kern::storage::SensorRecord rec =
@@ -52,15 +54,16 @@ void Orchestrator::runSensorTask()
             streamRecord(rec);
         }
 
-        vTaskDelay(pdMS_TO_TICKS(kern::config::kSensorPeriodMs));
+        vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(kern::config::kSensorPeriodMs));
     }
 }
 
 void Orchestrator::runStorageTask()
 {
+    TickType_t lastWake = xTaskGetTickCount();
     for (;;) {
         m_writer.service();
-        vTaskDelay(pdMS_TO_TICKS(kern::config::kStoragePeriodMs));
+        vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(kern::config::kStoragePeriodMs));
     }
 }
 

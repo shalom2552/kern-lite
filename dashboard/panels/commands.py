@@ -21,22 +21,47 @@ class CommandPanel(ttk.Frame):
         super().__init__(parent, style="Panel.TFrame")
         self.controller = controller
 
-        self.start_btn = ttk.Button(self, text="Start", command=self._start)
-        self.start_btn.grid(row=0, column=0, padx=(0, 4))
-        self.stop_btn = ttk.Button(self, text="Stop", command=self._stop)
-        self.stop_btn.grid(row=0, column=1, padx=4)
-        self.status_btn = ttk.Button(self, text="Status", command=self._status)
-        self.status_btn.grid(row=0, column=2, padx=4)
+        self._compact: bool | None = None
 
-        ttk.Label(self, text="Replay").grid(row=0, column=3, padx=(14, 4))
+        self.start_btn = ttk.Button(self, text="Start", command=self._start)
+        self.stop_btn = ttk.Button(self, text="Stop", command=self._stop)
+        self.status_btn = ttk.Button(self, text="Status", command=self._status)
+
+        self._replay_label = ttk.Label(self, text="Replay")
         self.replay_var = tk.StringVar(value="20")
-        ttk.Entry(self, textvariable=self.replay_var, width=7).grid(row=0, column=4)
+        self._replay_entry = ttk.Entry(self, textvariable=self.replay_var, width=7)
         self.replay_btn = ttk.Button(self, text="Send", command=self._replay)
-        self.replay_btn.grid(row=0, column=5, padx=4)
 
         self.erase_btn = ttk.Button(self, text="Erase...", style="Danger.TButton",
                                     command=self._erase)
-        self.erase_btn.grid(row=0, column=6, padx=(14, 0))
+
+        self.set_compact(False)
+
+    def set_compact(self, compact: bool) -> None:
+        """One row on wide screens, two rows on narrow ones."""
+        if compact == self._compact:
+            return
+        self._compact = compact
+        for widget in (self.start_btn, self.stop_btn, self.status_btn,
+                       self._replay_label, self._replay_entry,
+                       self.replay_btn, self.erase_btn):
+            widget.grid_forget()
+        if compact:
+            self.start_btn.grid(row=0, column=0, padx=(0, 4), sticky="w")
+            self.stop_btn.grid(row=0, column=1, padx=4, sticky="w")
+            self.status_btn.grid(row=0, column=2, padx=4, sticky="w")
+            self.erase_btn.grid(row=0, column=3, padx=(10, 0), sticky="w")
+            self._replay_label.grid(row=1, column=0, pady=(6, 0), sticky="w")
+            self._replay_entry.grid(row=1, column=1, padx=4, pady=(6, 0), sticky="w")
+            self.replay_btn.grid(row=1, column=2, padx=4, pady=(6, 0), sticky="w")
+        else:
+            self.start_btn.grid(row=0, column=0, padx=(0, 4))
+            self.stop_btn.grid(row=0, column=1, padx=4)
+            self.status_btn.grid(row=0, column=2, padx=4)
+            self._replay_label.grid(row=0, column=3, padx=(14, 4))
+            self._replay_entry.grid(row=0, column=4)
+            self.replay_btn.grid(row=0, column=5, padx=4)
+            self.erase_btn.grid(row=0, column=6, padx=(14, 0))
 
     def _guarded(self, action, label: str) -> None:
         try:
