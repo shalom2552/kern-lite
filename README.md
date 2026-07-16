@@ -1,18 +1,41 @@
+<div align="center">
+
+![tests](https://github.com/shalom2552/kern-lite/actions/workflows/tests.yml/badge.svg)
+![C++](https://img.shields.io/badge/C%2B%2B-17-00599C)
+![Python](https://img.shields.io/badge/Python-3-3776AB)
+![MCU](https://img.shields.io/badge/MCU-STM32L476RG-03234B)
+![RTOS](https://img.shields.io/badge/RTOS-FreeRTOS-6cc24a)
+
+</div>
+
 # KERN-LITE
 
-Fault aware black box data logger on an STM32L476RG (NUCLEO-L476RG) with a Python
-ground station.
+Fault aware black box data logger on an STM32L476RG (NUCLEO-L476RG) with a Python ground station.
 
 Samples five sensor channels at 10 Hz, filters them, and writes CRC protected 32
 byte records to a circular log on SD. Live telemetry streams over UART to a
 Python dashboard with charts, stats, replay and exports. Records survive power
 loss: each carries its own CRC and the write head is rebuilt after reset.
 
-| Ground station console, live recording session |
-| :--: |
-| ![Ground station dashboard during a live recording session](images/Dashboard_live.png) |
+<div align="center">
+<table>
+  <tr>
+    <th colspan="2">Ground station console</th>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/images/Dashboard_live.png" alt="Ground station dashboard during a live recording session"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/Dashboard_graphs.png" alt="Rolling charts, all five channels"></td>
+    <td><img src="docs/images/Dashboard_timeline.png" alt="State timeline and events"></td>
+  </tr>
+</table>
+</div>
 
 ## Status
+
+<details>
+<summary>All 8 phases complete</summary>
 
 - [x] Phase 0: project setup, RTOS smoke test
 - [x] Phase 1: CRC-32 and frame codec
@@ -22,6 +45,8 @@ loss: each carries its own CRC and the write head is rebuilt after reset.
 - [x] Phase 5: state machine, full command set
 - [x] Phase 6: ground station analytics
 - [x] Phase 7: fault injection, validation, demo
+
+</details>
 
 ## Wiring and pinout
 
@@ -89,7 +114,17 @@ Other entry points:
   .venv/bin/python -m dashboard.sim
   ```
 
-- Python REPL for talking to the board by hand: [ground_station_cli.md](ground_station_cli.md).
+- Python REPL for talking to the board by hand: [ground_station_cli.md](docs/ground_station_cli.md).
+
+## Command set
+
+| Command | Payload | Valid state | Effect |
+| --- | --- | --- | --- |
+| START | none | Idle | begin recording |
+| STOP | none | Recording | stop recording |
+| STATUS | none | any | board state snapshot |
+| REPLAY | count (u16) | Idle, SD mounted | stream stored records |
+| ERASE | magic `0xDEADC0DE` | Idle | wipe the log |
 
 ## Configured constants
 
@@ -154,4 +189,12 @@ sessions/            dashboard run output (generated)
 
 ## Team
 
-[shalom2552](https://github.com/shalom2552), [Yair-Dekel](https://github.com/Yair-Dekel), [Smallejoo](https://github.com/Smallejoo)
+| Member | Main areas |
+| --- | --- |
+| [shalom2552](https://github.com/shalom2552) | recorder, storage, ground station, dashboard |
+| [Yair-Dekel](https://github.com/Yair-Dekel) | board bring up, protocol, CubeMX/HAL glue |
+| [Smallejoo](https://github.com/Smallejoo) | sensors, DSP, tests |
+
+## License
+
+[MIT](LICENSE)
