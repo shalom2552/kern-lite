@@ -1,0 +1,22 @@
+State timeline
+==============
+16:14:40 - 16:14:56  Idle           15.3 s  records 0..0 (0)
+16:14:56 - (open)    Recording      33.1 s  records 0.. (open)
+
+Alerts
+======
+16:14:56  lm35       ACTIVE seq=1
+16:14:56  light      ACTIVE seq=1
+16:15:02  lm35       CLEAR  seq=60
+16:15:05  lm35       ACTIVE seq=88
+16:15:07  lm35       CLEAR  seq=110
+16:15:08  lm35       ACTIVE seq=118
+16:15:18  lm35       CLEAR  seq=215
+16:15:20  lm35       ACTIVE seq=229
+16:15:20  light      CLEAR  seq=237
+16:15:21  lm35       CLEAR  seq=239
+16:15:28  lm35       ACTIVE seq=310
+16:15:29  light      ACTIVE seq=316
+
+Reboots
+=======
