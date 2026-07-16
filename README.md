@@ -1,5 +1,7 @@
 # KERN-LITE
 
+![tests](https://github.com/shalom2552/kern-lite/actions/workflows/tests.yml/badge.svg)
+
 Fault aware black box data logger on an STM32L476RG (NUCLEO-L476RG) with a Python
 ground station.
 
@@ -10,7 +12,11 @@ loss: each carries its own CRC and the write head is rebuilt after reset.
 
 | Ground station console, live recording session |
 | :--: |
-| ![Ground station dashboard during a live recording session](images/Dashboard_live.png) |
+| ![Ground station dashboard during a live recording session](docs/images/Dashboard_live.png) |
+
+| Charts | Timeline |
+| :--: | :--: |
+| ![Rolling charts, all five channels](docs/images/Dashboard_graphs.png) | ![State timeline and events](docs/images/Dashboard_timeline.png) |
 
 ## Status
 
@@ -89,7 +95,17 @@ Other entry points:
   .venv/bin/python -m dashboard.sim
   ```
 
-- Python REPL for talking to the board by hand: [ground_station_cli.md](ground_station_cli.md).
+- Python REPL for talking to the board by hand: [ground_station_cli.md](docs/ground_station_cli.md).
+
+## Command set
+
+| Command | Payload | Valid state | Effect |
+| --- | --- | --- | --- |
+| START | none | Idle | begin recording |
+| STOP | none | Recording | stop recording |
+| STATUS | none | any | board state snapshot |
+| REPLAY | count (u16) | Idle, SD mounted | stream stored records |
+| ERASE | magic `0xDEADC0DE` | Idle | wipe the log |
 
 ## Configured constants
 
@@ -154,4 +170,12 @@ sessions/            dashboard run output (generated)
 
 ## Team
 
-[shalom2552](https://github.com/shalom2552), [Yair-Dekel](https://github.com/Yair-Dekel), [Smallejoo](https://github.com/Smallejoo)
+| Member | Main areas |
+| --- | --- |
+| [shalom2552](https://github.com/shalom2552) | recorder, storage, ground station, dashboard |
+| [Yair-Dekel](https://github.com/Yair-Dekel) | board bring up, protocol, CubeMX/HAL glue |
+| [Smallejoo](https://github.com/Smallejoo) | sensors, DSP, tests |
+
+## License
+
+MIT, see [LICENSE](LICENSE).
