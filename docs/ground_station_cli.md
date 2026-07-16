@@ -1,6 +1,6 @@
 # Ground Station Interactive REPL
 
-Talk to the board by hand from a Python REPL — connect, send commands, read frames — instead of running a fixed script. Run from repo root with the venv interpreter (see `docs/README.md` for first-time venv setup).
+Talk to the board by hand from a Python REPL — connect, send commands, read frames — instead of running a fixed script. Run from repo root with the venv interpreter (see the repo `README.md` for first-time venv setup).
 
 ```bash
 .venv/bin/python
