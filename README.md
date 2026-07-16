@@ -1,24 +1,41 @@
-# KERN-LITE
+<div align="center">
 
 ![tests](https://github.com/shalom2552/kern-lite/actions/workflows/tests.yml/badge.svg)
+![C++](https://img.shields.io/badge/C%2B%2B-17-00599C)
+![Python](https://img.shields.io/badge/Python-3-3776AB)
+![MCU](https://img.shields.io/badge/MCU-STM32L476RG-03234B)
+![RTOS](https://img.shields.io/badge/RTOS-FreeRTOS-6cc24a)
 
-Fault aware black box data logger on an STM32L476RG (NUCLEO-L476RG) with a Python
-ground station.
+</div>
+
+# KERN-LITE
+
+Fault aware black box data logger on an STM32L476RG (NUCLEO-L476RG) with a Python ground station.
 
 Samples five sensor channels at 10 Hz, filters them, and writes CRC protected 32
 byte records to a circular log on SD. Live telemetry streams over UART to a
 Python dashboard with charts, stats, replay and exports. Records survive power
 loss: each carries its own CRC and the write head is rebuilt after reset.
 
-| Ground station console, live recording session |
-| :--: |
-| ![Ground station dashboard during a live recording session](docs/images/Dashboard_live.png) |
-
-| Charts | Timeline |
-| :--: | :--: |
-| ![Rolling charts, all five channels](docs/images/Dashboard_graphs.png) | ![State timeline and events](docs/images/Dashboard_timeline.png) |
+<div align="center">
+<table>
+  <tr>
+    <th colspan="2">Ground station console</th>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/images/Dashboard_live.png" alt="Ground station dashboard during a live recording session"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/Dashboard_graphs.png" alt="Rolling charts, all five channels"></td>
+    <td><img src="docs/images/Dashboard_timeline.png" alt="State timeline and events"></td>
+  </tr>
+</table>
+</div>
 
 ## Status
+
+<details>
+<summary>All 8 phases complete</summary>
 
 - [x] Phase 0: project setup, RTOS smoke test
 - [x] Phase 1: CRC-32 and frame codec
@@ -28,6 +45,8 @@ loss: each carries its own CRC and the write head is rebuilt after reset.
 - [x] Phase 5: state machine, full command set
 - [x] Phase 6: ground station analytics
 - [x] Phase 7: fault injection, validation, demo
+
+</details>
 
 ## Wiring and pinout
 
@@ -178,4 +197,4 @@ sessions/            dashboard run output (generated)
 
 ## License
 
-MIT, see [LICENSE](LICENSE).
+[MIT](LICENSE)
