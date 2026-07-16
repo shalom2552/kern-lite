@@ -189,11 +189,14 @@ sessions/            dashboard run output (generated)
 
 ## Team
 
-| Member | Main areas |
-| --- | --- |
-| [shalom2552](https://github.com/shalom2552) | recorder, storage, ground station, dashboard |
-| [Yair-Dekel](https://github.com/Yair-Dekel) | board bring up, protocol, CubeMX/HAL glue |
-| [Smallejoo](https://github.com/Smallejoo) | sensors, DSP, tests |
+Three people, each owning a vertical slice: a piece of the firmware, its
+ground station counterpart, and the tests for both.
+
+| Member | Firmware | Ground station |
+| --- | --- | --- |
+| [shalom2552](https://github.com/shalom2552) | recorder pipeline, circular storage, fault policy | dashboard, sessions, analytics |
+| [Yair-Dekel](https://github.com/Yair-Dekel) | board bring-up, CRC-32/frame protocol, CubeMX/HAL glue | telemetry decode, integrity, state tracking |
+| [Smallejoo](https://github.com/Smallejoo) | sensor drivers, DSP, state machine | serial link, command layer |
 
 ## License
 
