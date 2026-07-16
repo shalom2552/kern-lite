@@ -223,12 +223,17 @@ StorageStatus CircularLog::writeRecord(const SensorRecord& r)
     if (fr != FR_OK || bw != kRecordSize) {
         return StorageStatus::IoError;
     }
-    f_sync(fp); // persist for crash recovery
+
+    // sync data before meta so the checkpoint never points past persisted records
+    bool flush = (m_meta.total_records + 1) % META_FLUSH_EVERY_N == 0;
+    if (flush && f_sync(fp) != FR_OK) {
+        return StorageStatus::IoError;
+    }
 
     advanceHead(m_meta);
     ++m_meta.total_records;
 
-    if (m_meta.total_records % META_FLUSH_EVERY_N == 0) {
+    if (flush) {
         return writeMeta();
     }
     return StorageStatus::Ok;
@@ -301,6 +306,10 @@ StorageStatus CircularLog::flushMeta()
 
     if (!m_mounted) {
         return StorageStatus::NotMounted;
+    }
+    // sync data before meta so the checkpoint never points past persisted records
+    if (m_filesOpen[m_meta.current_file]) {
+        f_sync(&m_files[m_meta.current_file]);
     }
     return writeMeta();
 }
