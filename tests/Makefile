@@ -67,15 +67,19 @@ test_fsm: $(FSM_SRC:.cpp=.o)
 # 	$(CC) $(CFLAGS) -o $@ $^
 
 # ---------- run -------------------------------------
-run: all $(VENV)
+run-host: all
 	@for exe in $(TRG); do \
 		./$$exe || exit 1; \
 	done
+
+run-py: $(VENV)
 	PYTHONPATH=$(PYTHONPATH) $(PYTEST) gs/ -v
+
+run: run-host run-py
 
 # ---------- clean -----------------------------------
 clean:
 	rm -f $(TRG) $(OBJ)
 	rm -rf _ffroot_*
 
-.PHONY: all run clean
+.PHONY: all run run-host run-py clean
