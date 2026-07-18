@@ -3,8 +3,7 @@
 ## 1. `LogMeta` byte layout
 
 `#pragma pack(push, 1)`, 36 bytes total, CRC computed over bytes 0–31
-(spec §10.3 is ground truth here — not the handbook's record-CRC range,
-which applies to the unrelated 32-byte `SensorRecord`).
+
 
 | Offset | Size | Field              | Encoding                          |
 |-------:|-----:|--------------------|------------------------------------|
@@ -42,55 +41,34 @@ ever rewrites or erases a slot it doesn't overwrite in the normal course
 of new writes, so a botched recovery cannot destroy data that was
 otherwise intact.
 
-## 3. Robustness scenario: boot-time storage availability
+## 3. Robustness scenario: power-loss mid-write recovery
 
-**Scope note:** this scenario was found and traced through code review
-during the A6.1 audit (no hardware pass yet) — the team should still run
-the physical power-pull test (Day 7, T5) to confirm hardware behavior
-matches this trace.
+This is the primary robustness
+evidence for the "DATA SURVIVABILITY" theme: every stored
+record is independently checksummed, the ring only overwrites the
+oldest retained data, metadata is persisted periodically, and the
+recorder reconstructs its write head after an unexpected reset.
 
-**Expected:** per spec FR-FW-01, on cold boot the firmware mounts or
-recovers storage *before* entering Idle, so `CMD_STATUS` reports
-`sd_mounted=1` and `CMD_REPLAY` works immediately after boot — including
-right after an unexpected reset, without requiring a START first.
+### Procedure (run on hardware)
 
-**Observed (before fix):** `Orchestrator::init()` never called
-`m_box.mount()`. Mounting only happened lazily inside `ensureMounted()`,
-guarded by `m_sm.isLogging()` — so it only ran once `CMD_START` had
-already been sent. A GS operator connecting right after a power-loss
-event and issuing `CMD_REPLAY` to check for surviving data would get
-`NACK StorageError` even though the SD card held valid, recoverable
-records, because `isMounted()` was still `false`.
+1. `CMD_START` from Idle.
+2. Let it run ~40 s (≥3 metadata flush cycles at `META_FLUSH_EVERY_N = 16`,
+   10 Hz sample rate).
+3. Pull power abruptly (no `CMD_STOP` first — this must be an *unclean*
+   cut, not a graceful shutdown).
+4. Restore power, let the board boot and re-mount.
+5. Reconnect the GS and issue `CMD_STATUS`.
+6. Issue `CMD_REPLAY 20`.
 
-**Fix applied:** `Orchestrator::init()` now calls `m_box.mount()`
-directly, so recovery (checkpoint-plus-forward-scan or full scan, per
-§2 above) runs at boot as required. `ensureMounted()` in the Storage
-task is unchanged and still owns retry/escalation to `Fault` if the
-card is physically absent or fails to mount (FR-FW-14).
+### Expected
 
-**Result:** with the fix, `CMD_STATUS`/`CMD_REPLAY` reflect the
-recovered ring state immediately after boot. Team should now run T5
-(power-pull mid-write, spec §14.2) on hardware to confirm the same
-holds for a genuinely interrupted write, not just a clean-then-recover
-boot.
+- `StatusPoller` on the GS flags `REBOOT_DETECTED` (total_records drops
+  between polls).
+- `total_records` in the post-reset STATUS is close to, but may trail,
+  the pre-reset value by up to `META_FLUSH_EVERY_N` (16) records — the
+  gap the forward-scan recovery is designed to close.
+- All 20 replayed records pass both frame CRC and record CRC.
+- Starting a new `CMD_START` afterward writes at the correct recovered
+  position — no overwrite of the still-valid pre-reset records, and no
+  gap larger than `META_FLUSH_EVERY_N`.
 
-## Other findings from this audit (see firmware diffs)
-
-- **Fault-transition STATUS**: spec §12.2 requires an immediate STATUS
-  frame on `Recording→Fault` (3rd consecutive write failure) and on
-  `Fault→Recording` (successful remount). Previously only the 5 s
-  heartbeat covered these; fixed by sending STATUS at both transition
-  points.
-- **Degraded-recording LED**: spec §6.3 distinguishes solid green
-  (nominal) from blinking green (`Recording` with `fault_bits` set).
-  Previously the LED was always solid while recording; fixed by
-  tracking the latest record's `fault_bits` and blinking accordingly.
-- **`WriteFailurePolicy` (now reviewed)**: counting logic is correct —
-  traced as fail 1 → tolerate, fail 2 → tolerate, fail 3 → trigger,
-  matching FR-FW-14 exactly. However `orchestrator.cpp` carried its own
-  local `MAX_WRITE_FAILS = 3` (for the Fault-state remount-retry limit)
-  separate from `WriteFailurePolicy`'s own default `maxFails = 3` — two
-  constants that happened to agree but could silently diverge on a
-  future edit. Consolidated into a single `kern::config::kMaxWriteFails`
-  (spec Appendix A: "Maximum consecutive write failures = 3"), used by
-  both the policy's constructor and the reboot-retry check.

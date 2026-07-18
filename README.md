@@ -34,6 +34,7 @@ loss: each carries its own CRC and the write head is rebuilt after reset.
 
 ## Status
 
+
 <details>
 <summary>All 8 phases complete</summary>
 
@@ -47,6 +48,178 @@ loss: each carries its own CRC and the write head is rebuilt after reset.
 - [x] Phase 7: fault injection, validation, demo
 
 </details>
+
+
+## Architecture
+
+Full deep-dive: [`docs/project_architecture_overview.md`](docs/project_architecture_overview.md).
+
+Four macro-components, one shared wire contract:
+
+| Component | Language | Location | Responsibility |
+|---|---|---|---|
+| Flight/Embedded Recorder | C++17 | `firmware/` | Sensor acquisition, DSP, FSM, storage, command handling. FreeRTOS. |
+| Platform Glue / Boot | C | `Core/`, `Middlewares/` | CubeMX HAL init, FreeRTOS kernel, FatFs disk I/O, boot hand-off into C++. |
+| Comms / Telemetry Protocol | C++ ↔ Python | `firmware/protocol/`, `groundstation/frame.py`, `groundstation/crc.py` | Binary framing + CRC-32, kept byte-for-byte identical on both ends. |
+| Ground Station | Python 3 | `groundstation/` | Serial link, frame dispatch, telemetry aggregation, device-state mirror, session recording, integrity checks. |
+
+```
+[Sensors] → Sensor task → DSP(Channel) → SensorRecord → SensorBus
+                                              │                │
+                                       (live) │                │ (persist)
+                                              ▼                ▼
+                                        CommLink.send()   CircularLog (FatFs/SD)
+                                              │                ▲ replay
+                                              ▼                │
+                                   protocol::encode ── UART ── protocol::Decoder
+                                                    │
+                        ┌───────────────────────────┴──────────────────────┐
+                        │  GS: SerialLink.receive_frame → Decoder → dispatch │
+                        │    RECORD → IntegrityChecker → TelemetryModel     │
+                        │            → Session → StorageModel               │
+                        │    STATUS → DeviceStateModel + StorageModel       │
+                        │    NACK → alert_log ; ACK → close replay txn      │
+                        └────────────────────────────────────────────────────┘
+```
+
+---
+
+## Python Environment & Usage
+
+The Ground Station and Dashboard run in an isolated Python virtual environment (`.venv`).
+> **Windows:** Replace `.venv/bin/` with `.venv\Scripts\` in the commands below.
+
+```bash
+# Ubuntu/Debian/WSL prerequisites (install Tkinter):
+sudo apt update && sudo apt install python3-tk
+
+# First-time setup:
+python -m venv .venv
+.venv/bin/pip install -r requirements.txt
+
+# Launch Dashboard / Simulator:
+.venv/bin/python -m dashboard
+.venv/bin/python -m dashboard.sim # No hardware simulator
+
+# Development & Testing:
+.venv/bin/pytest -v # Run tests
+.venv/bin/python <path/to/file.py> # Run a Python file
+.venv/bin/python3 -m py_compile <path-to-file> && echo OK || echo FAIL # Check Python syntax
+```
+
+Run all commands from the repo root.
+
+## Build & Flash (firmware)
+
+- **STM32CubeIDE:** import the repo root as an existing project, build the `Debug`
+  configuration, flash with Run → Debug (ST-Link on the Nucleo).
+- **CLI (CI parity):** `make -f tests/Makefile.ci firmware` (needs `gcc-arm-none-eabi`).
+
+## Tests
+
+```bash
+make -C tests run     # host C++ tests (codec, DSP, storage, FSM, cross-vectors) + pytest
+.venv/bin/pytest -v   # Python tests only
+```
+
+CRC known-answer on both ends: `CRC32("123456789") = 0xCBF43926`.
+
+## Protocol
+
+```
+┌─────┬──────┬────────┬────────┬───────────┬──────────┬─────┐
+│ STX │ TYPE │ LEN_LO │ LEN_HI │  PAYLOAD  │  CRC32   │ ETX │
+│0xAB │ 1 B  │  1 B   │  1 B   │ 0..256 B  │  4 B LE  │0xCD │
+└─────┴──────┴────────┴────────┴───────────┴──────────┴─────┘
+ Fixed overhead = 9 bytes. Max frame = 265 B. CRC covers TYPE+LEN+PAYLOAD only.
+```
+
+| Opcode | Name | Direction | Payload |
+|---|---|---|---|
+| `0x01` | CmdStart | GS→Dev | empty |
+| `0x02` | CmdStop | GS→Dev | empty |
+| `0x03` | CmdStatus | GS→Dev | empty |
+| `0x04` | CmdReplay | GS→Dev | `u16` count LE, default 120 |
+| `0x06` | CmdErase | GS→Dev | `u32` magic LE = `0xDEADC0DE` |
+| `0x10` | Record | Dev→GS | 32-byte `SensorRecord` |
+| `0x12` | Status | Dev→GS | 14-byte status block |
+| `0x20` | Ack | Dev→GS | empty |
+| `0x21` | Nack | Dev→GS | `u8` NackCode |
+
+`0x05`, `0x07`, `0x11` are retired, never reused. NackCode:
+`CrcError=1, BadCommand=2, InvalidState=3, StorageError=4, BadMagic=6`.
+
+**Command legality:** `START`/`ERASE` — Idle only · `STOP` — Recording only ·
+`STATUS` — always · `REPLAY` — Idle **and** `sd_mounted`. Enforced on both
+ends: firmware `CommandHandler::dispatch()`, GS `DeviceStateModel.command_allowed()`.
+
+## Data structures
+
+`SensorRecord` — 32 B, `#pragma pack(1)`, CRC over bytes 0–27:
+
+```
+offset  type   field         scaling
+0       u32    timestamp     seconds
+4       u16    ms            millisecond component
+6       u16    seq           wraps at 65536
+8       i16    lm35_c        LM35 temp ×10 °C
+10      i16    dht_temp_c    DHT11 temp ×10 °C
+12      u16    dht_hum       DHT11 humidity ×10 %
+14      u16    light         photodiode normalized ×65535
+16      u16    pot           potentiometer normalized ×65535
+18      u8     alert_bits    DSP threshold alert bitmask
+19      u8     state         FSM state (0/1/2)
+20      u8     fault_bits    sensor fault bitmask
+21      u8[7]  reserved
+28      u32    crc32         over bytes 0..27
+```
+
+STATUS payload — 14 B: `u8 state | u8 sd_mounted | u8 file_count |
+u8 current_file | u32 total_records | u32 wrap_count | u16 write_index`.
+
+`LogMeta` (on-SD only, not on the wire) — 36 B, CRC over bytes 0–31.
+Full byte-offset table: [`docs/design_note.md`](docs/design_note.md).
+
+## State machine
+
+```
+        ┌──────────────────────────────────────────┐
+        │                                          ▼
+     ┌──────┐   UartStart        ┌───────────┐  SdFault   ┌───────┐
+     │ Idle │ ──────────────────►│ Recording │───────────►│ Fault │
+     │      │◄───────────────────│           │            │       │
+     └──────┘ UartStop/ShortPress└───────────┘            └───────┘
+        ▲                                                     │
+        └────────────── FaultCleared → Recording ─────────────┘
+```
+
+## Tasks (firmware)
+
+| Task | Period | Priority | Stack | Role |
+|---|---|---|---|---|
+| Sensor | 100 ms | idle+2 | 512 | sample → DSP → assemble record → publish + live-stream (Recording only) |
+| Storage | 100 ms | idle+2 | 768 | mount/ensure, write once per seq, fault recovery + remount |
+| Comms | 10 ms | idle+3 (highest) | 384 | poll `CommLink` → `CommandHandler::dispatch` |
+| System | 50 ms | idle+1 (lowest) | 384 | watchdog kick, state LEDs, buzzer, SW1 short-press, 5 s STATUS heartbeat |
+
+## Configured constants
+
+| Constant | Value |
+|---|---|
+| `LOG_FILE_COUNT` | 4 |
+| `RECORDS_PER_FILE` | 256 |
+| Ring capacity | 1024 records (~102.4 s per wrap at 10 Hz) |
+| `META_FLUSH_EVERY_N` | 16 |
+| Sample rate | 10 Hz |
+| DSP window | 16 |
+| UART | 115200 baud, USART2 |
+| `ERASE_MAGIC` | `0xDEADC0DE` |
+| Max consecutive write/mount failures | 3 (`kern::config::kMaxWriteFails`) |
+| STATUS heartbeat | 5 s |
+| GS heartbeat timeout | 15 s |
+| Default REPLAY count | 120 |
+
+---
 
 ## Wiring and pinout
 
@@ -186,7 +359,12 @@ tests/
 docs/                spec, design note, validation results
 sessions/            dashboard run output (generated)
 ```
+## Documentation
 
+| Doc | Role |
+|---|---|
+| [`docs/project_architecture_overview.md`](docs/project_architecture_overview.md) | Implementation deep-dive: file-level mapping, concurrency map, data-flow traces. |
+| [`docs/design_note.md`](docs/design_note.md) | `LogMeta` byte layout, recovery algorithm, T5 power-loss robustness evidence. |
 ## Team
 
 Three people, each owning a vertical slice: a piece of the firmware, its
