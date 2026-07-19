@@ -29,11 +29,7 @@ class TimelinePanel(ttk.Frame):
     def __init__(self, parent: tk.Misc, controller) -> None:
         super().__init__(parent)
         self.controller = controller
-        self.columnconfigure(0, weight=0)
-        self.columnconfigure(1, weight=2)
-        self.columnconfigure(2, weight=3)
-        self.columnconfigure(3, weight=3)
-        self.rowconfigure(1, weight=1)
+        self._narrow: bool | None = None
 
         band = ttk.Frame(self, style="Card.TFrame", padding=1)
         band.grid(row=0, column=0, columnspan=4, sticky="ew")
@@ -44,16 +40,44 @@ class TimelinePanel(ttk.Frame):
         self.canvas.grid(row=0, column=0, sticky="nsew")
 
         self.legend = _LegendCard(self)
-        self.legend.grid(row=1, column=0, sticky="nsew", pady=(10, 0))
-
         self.status = _StatusCard(self)
-        self.status.grid(row=1, column=1, sticky="nsew", padx=10, pady=(10, 0))
-
         self.channel_alerts = _ChannelAlertsCard(self)
-        self.channel_alerts.grid(row=1, column=2, sticky="nsew", padx=(0, 10), pady=(10, 0))
-
         self.log = _LogCard(self)
-        self.log.grid(row=1, column=3, sticky="nsew", pady=(10, 0))
+
+        self.set_narrow(False)
+
+    def set_narrow(self, narrow: bool) -> None:
+        """Cards in one row on wide screens, stacked two-up on narrow ones."""
+        if narrow == self._narrow:
+            return
+        self._narrow = narrow
+        for card in (self.legend, self.status, self.channel_alerts, self.log):
+            card.grid_forget()
+        if narrow:
+            for col, weight in enumerate((1, 1, 0, 0)):
+                self.columnconfigure(col, weight=weight)
+            self.rowconfigure(1, weight=0)
+            self.rowconfigure(2, weight=0)
+            self.rowconfigure(3, weight=1)
+            self.legend.grid(row=1, column=0, sticky="nsew", pady=(10, 0))
+            self.status.grid(row=1, column=1, sticky="nsew", padx=(10, 0), pady=(10, 0))
+            self.channel_alerts.grid(row=2, column=0, columnspan=2,
+                                     sticky="nsew", pady=(10, 0))
+            self.log.grid(row=3, column=0, columnspan=2, sticky="nsew", pady=(10, 0))
+        else:
+            for col, weight in enumerate((0, 2, 3, 3)):
+                self.columnconfigure(col, weight=weight)
+            self.rowconfigure(1, weight=1)
+            self.rowconfigure(2, weight=0)
+            self.rowconfigure(3, weight=0)
+            self.legend.grid(row=1, column=0, sticky="nsew", pady=(10, 0))
+            self.status.grid(row=1, column=1, sticky="nsew", padx=10, pady=(10, 0))
+            self.channel_alerts.grid(row=1, column=2, sticky="nsew",
+                                     padx=(0, 10), pady=(10, 0))
+            self.log.grid(row=1, column=3, sticky="nsew", pady=(10, 0))
+
+    def reset(self) -> None:
+        self.log.reset()
 
     def refresh(self) -> None:
         self._draw_band()
@@ -277,6 +301,10 @@ class _LogCard(ttk.Frame):
         scrollbar.grid(row=1, column=1, sticky="ns")
 
         self._rendered = 0
+
+    def reset(self) -> None:
+        self._rendered = 0
+        self.tree.delete(*self.tree.get_children())
 
     def refresh(self, alert_log) -> None:
         entries = alert_log.entries

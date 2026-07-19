@@ -97,6 +97,13 @@ class LinkQualityMonitor:
     def on_command(self) -> None:
         self._commands += 1
 
+    def on_seq_reset(self, seq: int, wall_time: float) -> None:
+        # a backward sequence jump means the device restarted (FR-GS-13)
+        self.reboot_count += 1
+        if self.alert_log is not None:
+            self.alert_log.add("REBOOT", session_seq=seq, wall_time=wall_time,
+                               message=f"sequence counter reset to {seq}")
+
     def on_status(self, total_records: int, wall_time: float,
                   seq: int | None = None) -> bool:
         """Reboot detection: total_records falling well below the previous

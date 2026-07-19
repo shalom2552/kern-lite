@@ -19,13 +19,13 @@ ERASE_CONFIRM_TEXT = "DEADC0DE"
 
 def parse_replay_count(raw: str) -> int:
     """Validate the replay count entry; raises ValueError with a user-facing
-    message when it is not a whole number in [1, 65535]."""
+    message when it is not a whole number in [0, 65535]."""
     try:
         count = int(raw.strip())
     except ValueError:
         raise ValueError("Enter a whole number of records to replay.") from None
-    if not 1 <= count <= 65535:
-        raise ValueError("Replay count must be between 1 and 65535.")
+    if not 0 <= count <= 65535:
+        raise ValueError("Replay count must be between 0 and 65535.")
     return count
 
 

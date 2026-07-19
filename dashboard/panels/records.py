@@ -80,6 +80,9 @@ class RecordsPanel(ttk.Frame):
         self.tree.delete(*self.tree.get_children())
         self._seen = self.controller.telemetry.record_count
 
+    def reset(self) -> None:
+        self._clear()
+
     def _insert(self, row) -> None:
         record = row.record
         values = channel_values(record)

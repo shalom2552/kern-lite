@@ -102,12 +102,15 @@ void SensorSampler::sampleDht(kern::storage::SensorRecord& rec,
         if (st == kern::sensors::Dht11::Status::Ok) {
             m_lastDhtTemp = dhtTemp;
             m_lastDhtHum = dhtHum;
+            m_dhtFaultBits = 0;
         } else if (st == kern::sensors::Dht11::Status::Timeout) {
-            faultBits |= kern::storage::kFaultDhtTimeout;
+            m_dhtFaultBits = kern::storage::kFaultDhtTimeout;
         } else {
-            faultBits |= kern::storage::kFaultDhtBadData;
+            m_dhtFaultBits = kern::storage::kFaultDhtBadData;
         }
     }
+    // latch the fault until the next poll so every record reports it
+    faultBits |= m_dhtFaultBits;
 
     auto dhtTempOut = m_chDhtTemp.process(m_lastDhtTemp);
     auto dhtHumOut = m_chDhtHum.process(m_lastDhtHum);
